@@ -252,12 +252,12 @@ if __name__ == "__main__":
 
 	# adb root
 	set_root()
+	
+	turn_on_screen()
 
 	set_brightness(158)
 
-	turn_on_screen()
-
-	sleep(300)
+	# sleep(300)
 
 	window = get_window()
 
