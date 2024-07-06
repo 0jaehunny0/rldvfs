@@ -59,15 +59,15 @@ def action_to_freq(action):
 
 class DVFStrain(Env):
     def __init__(self):
- 
-    
-        self.window = get_window()
 
         # adb root
         set_root()
 
+        turn_on_screen()
+
         set_brightness(158)
 
+        self.window = get_window()
         """
         cpu_freq 1/2/3 
         gpu freq_1/2/3 
@@ -81,7 +81,11 @@ class DVFStrain(Env):
 
         self.action_space = spaces.Discrete(9)
         
+        unset_frequency()
 
+        turn_off_usb_charging()
+
+        sleep(600)
 
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
@@ -91,7 +95,7 @@ class DVFStrain(Env):
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
         # wait 1s
-        sleep(0.5)
+        sleep(0.1)
 
         fps = get_fps(self.window)
 
@@ -127,7 +131,7 @@ class DVFStrain(Env):
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
         # wait 1s
-        sleep(0.5)
+        sleep(0.1)
 
         fps = get_fps(self.window)
 
@@ -141,7 +145,7 @@ class DVFStrain(Env):
         gpu = (gpub - gpua)/(t2b-t2a)
 
 
-        l_t, m_t, b_t, g_t, qi_t, disp_t  = get_temperatures()
+        l_t, m_t, b_t, g_t, qi_t, batt_t  = get_temperatures()
 
         reward = get_reward(fps, little + mid + big + gpu, target_fps, m_t, g_t, self.c_t_prev, self.g_t_prev, beta)
 
@@ -150,7 +154,7 @@ class DVFStrain(Env):
 
         ppw = fps/(little + mid + big + gpu)
 
-        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw}
+        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp": [l_t, m_t, b_t, g_t, qi_t, batt_t]}
 
         ac = [little_min, mid_min, big_min, gpu_min]
 

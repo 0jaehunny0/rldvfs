@@ -26,7 +26,7 @@ def action_to_freq(action):
 def cal_reward(fps, little, mid, big, gpu, temps):
 
     reward = 0
-    l_t, m_t, b_t, g_t, qi_t, disp_t = temps
+    l_t, m_t, b_t, g_t, qi_t, bat_t = temps
     
     min_fps = min(fpsDeque)
     max_fps = max(fpsDeque)
@@ -37,11 +37,11 @@ def cal_reward(fps, little, mid, big, gpu, temps):
 
     beta = fps / (little + mid + big + gpu)
 
-    if fps < target_fps:
-        alpha = -1 * beta * (target_fps - fps) / (target_fps - min_fps)
+    # if fps < target_fps:
+    #     alpha = -1 * beta * (target_fps - fps) / (target_fps - min_fps)
     
-    if qi_t > temp_ths or disp_t > temp_ths:
-        gamma = -1 * beta * ( max(qi_t, disp_t) - temp_ths) / temp_ths
+    # if qi_t > temp_ths or disp_t > temp_ths:
+    #     gamma = -1 * beta * ( max(qi_t, disp_t) - temp_ths) / temp_ths
 
     reward = alpha + beta + gamma
 
@@ -61,22 +61,26 @@ class DVFStrain(Env):
         
         # reward collected
         self.collected_reward = 0
-    
-        self.window = get_window()
 
         # adb root
         set_root()
+        
+        turn_on_screen()
 
         set_brightness(158)
 
-        turn_on_screen()
+        self.window = get_window()
+
+        turn_off_usb_charging()
+
+        sleep(600)
 
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
         a = get_core_util()
 
         # wait 0.5s
-        sleep(0.5)
+        sleep(0.1)
 
         # current state 
         temps = np.array(get_temperatures())
@@ -122,11 +126,11 @@ class DVFStrain(Env):
         freqs = np.array([little_min, mid_min, big_min, gpu_min])
 
         # wait 0.5s
-        sleep(0.5)
+        sleep(0.1)
 
         # current state 
         temps = np.array(get_temperatures())
-        freqs = np.array(get_frequency())
+        # freqs = np.array(get_frequency())
 
         fps = get_fps(self.window)
 
@@ -163,7 +167,7 @@ class DVFStrain(Env):
         ppw = fps/(little*100 + mid*100 + big*100 + gpu*100)
 
         # observation update
-        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw}
+        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps}
 
         ac = [little_min, mid_min, big_min, gpu_min]
 
@@ -178,7 +182,7 @@ class DVFStrain(Env):
     def reset(self, seed, options):
         super().reset(seed=seed)
         # self.state = 
-        self.rounds = 0
+        # self.rounds = 0
         self.collected_reward = 0
         return self.state, {"a":1}
     

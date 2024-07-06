@@ -180,8 +180,7 @@ def get_ob_phone(a, aa):
 	gpu_util = get_gpu_util()
 
 	little_f, mid_f, big_f, gpu_f = get_frequency()
-	little_t, mid_t, big_t, gpu_t, qi_t, disp_t = get_temperatures()
-
+	little_t, mid_t, big_t, gpu_t, qi_t, batt_t = get_temperatures()
 
 	gpu_freq = [gpu_f]
 	cpu_freq = [little_f, mid_f, big_f]
@@ -194,15 +193,16 @@ def get_ob_phone(a, aa):
 
 	cpu_util = list(cal_core_util(b,a))
 
-	power = [(littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)]
+	power = (littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)
+	power2 = get_battery_power()
 
 	# 16个数据
-	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,power]).astype(np.float32)
+	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,power2]).astype(np.float32)
 
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
 	print()
-	return states,reward
+	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t]
 
 def action_to_freq(action):
 
@@ -245,26 +245,29 @@ if __name__ == "__main__":
 	rewardLi = []
 	powerLi = []
 	lossLi = []
-
-	a = get_core_util()
-	aa = get_energy()
-	sleep(0.5)
+	tempLi = []
 
 	# adb root
 	set_root()
 	
+	turn_off_usb_charging()
+
 	turn_on_screen()
 
 	set_brightness(158)
 
-	# sleep(300)
-
 	window = get_window()
 
-	
+	unset_frequency()
+
+	sleep(600)
+
+	a = get_core_util()
+	aa = get_energy()
+	sleep(0.1)
 
 	while True:
-		state, reward = get_ob_phone(a, aa)
+		state, reward, power1, temps = get_ob_phone(a, aa)
 		agent.eps = EPS_END + (EPS_START - EPS_END) * \
                 math.exp(-1. * g_step / EPS_DECAY)
 		action = agent.select_action(torch.from_numpy(state).unsqueeze(0))
@@ -279,12 +282,12 @@ if __name__ == "__main__":
 		a = get_core_util()
 		aa = get_energy()
 
-		sleep(0.5)
+		sleep(0.1)
 
 		record_count+=1
 		global_count += 1
 
-		little1, mid1, big1, gpu1, power1 = state[[-4, -3, -2, 9, -1]]
+		little1, mid1, big1, gpu1 = state[[-4, -3, -2, 9]]
 		fps1 = get_fps(window)
 
 		little.append(little1)
@@ -295,7 +298,7 @@ if __name__ == "__main__":
 		fpsLi.append(fps1)
 		powerLi.append(power1)
 		rewardLi.append(reward)
-
+		tempLi.append(temps)
 
 		if (record_count%5==0 and record_count!=0):
 
@@ -304,12 +307,20 @@ if __name__ == "__main__":
 
 			if global_count % 10 == 0 and global_count != 0:
 				writer.add_scalar("losses/loss", losses[-1], global_count)
-				writer.add_scalar("losses/little", np.array(little)[-10:].mean(), global_count)
-				writer.add_scalar("losses/mid", np.array(mid)[-10:].mean(), global_count)
-				writer.add_scalar("losses/big", np.array(big)[-10:].mean(), global_count)
-				writer.add_scalar("losses/gpu", np.array(gpu)[-10:].mean(), global_count)
-				writer.add_scalar("losses/ppw", np.array(ppw)[-10:].mean(), global_count)
-				writer.add_scalar("losses/reward", np.array(rewardLi)[-10:].mean(), global_count)
+				writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_count)
+				writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_count)
+				writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_count)
+				writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_count)
+				writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_count)
+				writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_count)
+				writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_count)
+				writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_count)
+				writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_count)
+				writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_count)
+				writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_count)
+				writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_count)
+				writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_count)
+				writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_count)
 
 			# Reset initial states/actions to None
 			prev_state,prev_action,record_count = None,None,0
@@ -317,5 +328,6 @@ if __name__ == "__main__":
 			n_round += 1
 			if n_round % SYNC_STEP == 0: agent.sync_model()
 		
-		if record_count >= 500:
+		if global_count >= 1000:
+			turn_on_usb_charging()
 			break

@@ -63,25 +63,25 @@ def get_gpu_util():
 
 def get_frequency():
 	""" little """
-	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq'
+	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq'
 	result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
 	result = result.stdout.decode('utf-8')
 	result = result.split("\n")
 	little = int(result[0])
 	""" mid """
-	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq'
+	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq'
 	result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
 	result = result.stdout.decode('utf-8')
 	result = result.split("\n")
 	mid = int(result[0])
 	""" big """
-	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq'
+	msg = 'adb shell cat /sys/devices/system/cpu/cpufreq/policy6/scaling_cur_freq'
 	result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
 	result = result.stdout.decode('utf-8')
 	result = result.split("\n")
 	big = int(result[0])
 	""" gpu """
-	msg = 'adb shell cat /sys/class/misc/mali0/device/scaling_min_freq'
+	msg = 'adb shell cat /sys/class/misc/mali0/device/cur_freq'
 	result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
 	result = result.stdout.decode('utf-8')
 	result = result.split("\n")
@@ -141,6 +141,17 @@ def get_energy():
     
     return t1, t2, little, mid, big, gpu
 
+def get_battery_power():
+    msg = 'adb shell cat /sys/class/power_supply/battery/current_now'
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    current = int(result.stdout.decode('utf-8'))
+    msg = 'adb shell cat /sys/class/power_supply/battery/voltage_now'
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    voltage = int(result.stdout.decode('utf-8'))
+    current = current * 1.0 / 1e3
+    voltage = voltage * 1.0 / 1e6
+    return [float(abs(current)*abs(voltage))] # mW
+
 def get_temperatures():
     msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone9/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
@@ -157,12 +168,12 @@ def get_temperatures():
     msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone17/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     qi = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone20/temp'
+    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone23/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
-    disp = int(result.stdout.decode('utf-8'))
+    battery = int(result.stdout.decode('utf-8'))
     
 
-    return little/1000, mid/1000, big/1000, gpu/1000, qi/1000, disp/1000
+    return little/1000, mid/1000, big/1000, gpu/1000, qi/1000, battery/1000
 
 def set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max):
     """ little """

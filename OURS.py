@@ -15,6 +15,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 # from my_env import DogTrain
 from OURSenv import DVFStrain 
+from utils import *
 
 @dataclass
 class Args:
@@ -38,9 +39,9 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "DVFStrain2"
     """the environment id of the task"""
-    total_timesteps: int = 500
+    total_timesteps: int = 1000
     """total timesteps of the experiments"""
-    buffer_size: int = int(1e6)
+    buffer_size: int = 1000
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
@@ -48,11 +49,11 @@ class Args:
     """target smoothing coefficient (default: 0.005)"""
     batch_size: int = 64
     """the batch size of sample from the reply memory"""
-    learning_starts: int = 50
+    learning_starts: int = 100
     """timestep to start learning"""
-    policy_lr: float = 3e-4
+    policy_lr: float = 1e-4
     """the learning rate of the policy network optimizer"""
-    q_lr: float = 1e-3
+    q_lr: float = 1e-4
     """the learning rate of the Q network network optimizer"""
     policy_frequency: int = 2
     """the frequency of training policy (delayed)"""
@@ -79,9 +80,9 @@ def make_env(env_id, seed, idx, capture_video, run_name):
 class SoftQNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 32)
-        self.fc2 = nn.Linear(32, 32)
-        self.fc3 = nn.Linear(32, 1)
+        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 10)
+        self.fc2 = nn.Linear(10, 10)
+        self.fc3 = nn.Linear(10, 1)
 
     def forward(self, x, a):
         x = torch.cat([x, a], 1)
@@ -99,10 +100,10 @@ LOG_STD_MIN = -5
 class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 32)
-        self.fc2 = nn.Linear(32, 32)
-        self.fc_mean = nn.Linear(32, np.prod(env.single_action_space.shape))
-        self.fc_logstd = nn.Linear(32, np.prod(env.single_action_space.shape))
+        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 10)
+        self.fc2 = nn.Linear(10, 10)
+        self.fc_mean = nn.Linear(10, np.prod(env.single_action_space.shape))
+        self.fc_logstd = nn.Linear(10, np.prod(env.single_action_space.shape))
         # action rescaling
         self.register_buffer(
             "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
@@ -198,7 +199,7 @@ if __name__ == "__main__":
     rewardLi = []
     powerLi = []
     lossLi = []
-
+    tempLi = []
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
@@ -221,11 +222,12 @@ if __name__ == "__main__":
         fps = infos["final_info"][0]["fps"]
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
-
+        temps = infos["final_info"][0]["temp"]
 
         fpsLi.append(fps)
         powerLi.append(power)
         rewardLi.append(reward)
+        tempLi.append(temps)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -292,14 +294,22 @@ if __name__ == "__main__":
             if global_step % 10 == 0:
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
-                writer.add_scalar("losses/little", np.array(little)[-10:].mean(), global_step)
-                writer.add_scalar("losses/mid", np.array(mid)[-10:].mean(), global_step)
-                writer.add_scalar("losses/big", np.array(big)[-10:].mean(), global_step)
-                writer.add_scalar("losses/gpu", np.array(gpu)[-10:].mean(), global_step)
-                writer.add_scalar("losses/ppw", np.array(ppw)[-10:].mean(), global_step)
-                writer.add_scalar("losses/reward", np.array(rewardLi)[-10:].mean(), global_step)
+                writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+                writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+                writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+                writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+                writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+                writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+                writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
+                writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+                writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+                writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+                writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+                writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+                writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+                writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
 
 
-
+    turn_on_usb_charging()
     envs.close()
     writer.close()

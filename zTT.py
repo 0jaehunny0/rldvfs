@@ -15,6 +15,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 from zTTenv import DVFStrain
 import matplotlib.pyplot as plt
+from utils import *
+
 
 @dataclass
 class Args:
@@ -44,7 +46,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "zTT"
     """the id of the environment"""
-    total_timesteps: int = 500
+    total_timesteps: int = 1000
     """total timesteps of the experiments"""
     learning_rate: float = 0.05
     """the learning rate of the optimizer"""
@@ -108,6 +110,11 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
 
 if __name__ == "__main__":
 
+    epsilon = 1
+    epsilon_decay = 0.08
+
+    
+
     little = []
     mid = []
     big = []
@@ -125,6 +132,7 @@ if __name__ == "__main__":
     rewardLi = []
     powerLi = []
     lossLi = []
+    tempLi = []
 
     args = tyro.cli(Args)
     assert args.num_envs == 1, "vectorized envs are not supported at the moment"
@@ -171,7 +179,10 @@ if __name__ == "__main__":
         ts.append(global_step)
 
         # ALGO LOGIC: put action logic here
-        epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
+        # epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
+
+        epsilon *= epsilon_decay
+
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
@@ -189,11 +200,12 @@ if __name__ == "__main__":
         fps = infos["final_info"][0]["fps"]
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
-
+        temps = infos["final_info"][0]["temp"]
 
         fpsLi.append(fps)
         powerLi.append(power)
         rewardLi.append(reward)
+        tempLi.append(temps)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -218,12 +230,20 @@ if __name__ == "__main__":
                 if global_step % 10 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
                     writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    writer.add_scalar("losses/little", np.array(little)[-10:].mean(), global_step)
-                    writer.add_scalar("losses/mid", np.array(mid)[-10:].mean(), global_step)
-                    writer.add_scalar("losses/big", np.array(big)[-10:].mean(), global_step)
-                    writer.add_scalar("losses/gpu", np.array(gpu)[-10:].mean(), global_step)
-                    writer.add_scalar("losses/ppw", np.array(ppw)[-10:].mean(), global_step)
-                    writer.add_scalar("losses/reward", np.array(rewardLi)[-10:].mean(), global_step)
+                    writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+                    writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+                    writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+                    writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+                    writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+                    writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+                    writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_step)
+                    writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+                    writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+                    writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+                    writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+                    writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+                    writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+                    writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
 
                 # optimize the model
                 optimizer.zero_grad()
@@ -278,6 +298,6 @@ if __name__ == "__main__":
         # ax4.grid(True)
         
         # plt.pause(0.1)
-
+    turn_on_usb_charging()
     envs.close()
     writer.close()
