@@ -87,6 +87,8 @@ class DVFStrain(Env):
 
         sleep(600)
 
+        set_rate_limit_us(1000000, 2000)
+
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
 

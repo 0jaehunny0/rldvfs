@@ -311,5 +311,6 @@ if __name__ == "__main__":
 
 
     turn_on_usb_charging()
+    unset_rate_limit_us()
     envs.close()
     writer.close()

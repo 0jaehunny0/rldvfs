@@ -175,6 +175,26 @@ def get_temperatures():
 
     return little/1000, mid/1000, big/1000, gpu/1000, qi/1000, battery/1000
 
+def set_rate_limit_us(rate_limit_us, dvfs_period): # us / ms
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(dvfs_period)+' > /sys/class/misc/mali0/device/dvfs_period"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
+def unset_rate_limit_us():
+    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"20"+' > /sys/class/misc/mali0/device/dvfs_period"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
 def set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max):
     """ little """
     msg = 'adb shell "echo '+str(little_min)+' > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq"'

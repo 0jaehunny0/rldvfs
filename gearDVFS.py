@@ -262,6 +262,8 @@ if __name__ == "__main__":
 
 	sleep(600)
 
+	set_rate_limit_us(1000000, 2000)
+
 	a = get_core_util()
 	aa = get_energy()
 	sleep(0.1)
@@ -330,4 +332,5 @@ if __name__ == "__main__":
 		
 		if global_count >= 1000:
 			turn_on_usb_charging()
+			unset_rate_limit_us()
 			break

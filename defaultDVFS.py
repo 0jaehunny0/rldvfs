@@ -18,6 +18,8 @@ turn_off_usb_charging()
 
 sleep(600)
 
+unset_rate_limit_us()
+
 run_name = "default__" + str(int(time.time()))
 writer = SummaryWriter(f"runs/{run_name}")
 

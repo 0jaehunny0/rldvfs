@@ -299,5 +299,6 @@ if __name__ == "__main__":
         
         # plt.pause(0.1)
     turn_on_usb_charging()
+    unset_rate_limit_us()
     envs.close()
     writer.close()
