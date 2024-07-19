@@ -32,36 +32,37 @@ fpsLi = []
 powerLi = []
 tempLi = []
 
-for i in range(1000):
+for i in range(1001):
 
     # energy before
     t1a, t2a, littlea, mida, biga, gpua = get_energy()
 
-    sleep(0.1)
-    
+    sleep(1)
+
+    fps = get_fps(window)
+
+    freqs = np.array(get_frequency())
+
     # energy after
     t1b, t2b, littleb, midb, bigb, gpub = get_energy()
 
+    little.append(freqs[0])
+    mid.append(freqs[1])
+    big.append(freqs[2])
+    gpu.append(freqs[3])
+    fpsLi.append(fps)
+    tempLi.append(list(get_temperatures()))
+    
     # reward - energy
     little_p = (littleb - littlea)/(t1b-t1a)
     mid_p = (midb - mida)/(t1b-t1a)
     big_p = (bigb - biga)/(t1b-t1a)
     gpu_p = (gpub - gpua)/(t2b-t2a)
 
-    fps = get_fps(window)
-
     ppw = fps/(little_p + mid_p + big_p + gpu_p)
 
-    freqs = np.array(get_frequency())
-
-    little.append(freqs[0])
-    mid.append(freqs[1])
-    big.append(freqs[2])
-    gpu.append(freqs[3])
     ppwLi.append(ppw)
-    fpsLi.append(fps)
     powerLi.append(little_p + mid_p + big_p + gpu_p)
-    tempLi.append(list(get_temperatures()))
 
     if i % 10 == 0 and i != 0:
         writer.add_scalar("freq/little", np.array(little)[-10:].mean(), i)

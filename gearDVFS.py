@@ -31,6 +31,29 @@ Available Agents:
 2. Agent with Action Branching
 """
 
+def save_checkpoint(state, savepath, flag=True):
+    """Save for general purpose (e.g., resume training)"""
+    if not os.path.isdir(savepath):
+        os.makedirs(savepath, 0o777)
+    # timestamp = str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    if flag:
+        filename = os.path.join(savepath, "best_ckpt.pth.tar")
+    else:
+        filename = os.path.join(savepath, "newest_ckpt.pth.tar")
+    torch.save(state, filename)
+
+
+def load_checkpoint(savepath, flag=True):
+    """Load for general purpose (e.g., resume training)"""
+    if flag:
+        filename = os.path.join(savepath, "best_ckpt.pth.tar")
+    else:
+        filename = os.path.join(savepath, "newest_ckpt.pth.tar")
+    if not os.path.isfile(filename):
+        return None
+    state = torch.load(filename)
+    return state
+
 # Agent with action branching without time context
 class DQN_AGENT_AB():
 	def __init__(self, s_dim, h_dim, branches, buffer_size, params):
@@ -121,6 +144,25 @@ class DQN_AGENT_AB():
 			self.optimizer.step()
 		return losses
 
+	def save_model(self, n_round, savepath):
+		save_checkpoint({'epoch': n_round, 'model_state_dict':self.target_net.state_dict(),
+	        'optimizer_state_dict':self.optimizer.state_dict()}, savepath)
+		f = open(os.path.join(savepath,"memory"), 'wb')
+		pickle.dump(self.mem,f)
+		f.close()
+
+	def load_model(self, loadpath):
+		if not os.path.isdir(loadpath): os.makedirs(loadpath)
+		checkpoint = load_checkpoint(loadpath)
+		if checkpoint is not None:
+			self.policy_net.load_state_dict(checkpoint['model_state_dict'])
+			self.target_net.load_state_dict(checkpoint['model_state_dict'])
+			self.target_net.eval()
+		if os.path.exists(os.path.join(loadpath,"memory")):
+			f = open(os.path.join(loadpath,"memory"),'rb')
+			self.mem = pickle.load(f)
+			f.close()
+
 	def sync_model(self):
 		self.target_net.load_state_dict(self.policy_net.state_dict())
 
@@ -196,13 +238,16 @@ def get_ob_phone(a, aa):
 	power = (littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)
 	power2 = get_battery_power()
 
+	fps = get_fps(window)
+
+
 	# 16个数据
 	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,power2]).astype(np.float32)
 
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
 	print()
-	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t]
+	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], fps
 
 def action_to_freq(action):
 
@@ -262,14 +307,14 @@ if __name__ == "__main__":
 
 	sleep(600)
 
-	set_rate_limit_us(1000000, 2000)
+	set_rate_limit_us(10000000, 20000)
 
 	a = get_core_util()
 	aa = get_energy()
-	sleep(0.1)
+	sleep(0.2)
 
 	while True:
-		state, reward, power1, temps = get_ob_phone(a, aa)
+		state, reward, power1, temps, fps1 = get_ob_phone(a, aa)
 		agent.eps = EPS_END + (EPS_START - EPS_END) * \
                 math.exp(-1. * g_step / EPS_DECAY)
 		action = agent.select_action(torch.from_numpy(state).unsqueeze(0))
@@ -284,13 +329,12 @@ if __name__ == "__main__":
 		a = get_core_util()
 		aa = get_energy()
 
-		sleep(0.1)
+		sleep(0.2)
 
 		record_count+=1
 		global_count += 1
 
 		little1, mid1, big1, gpu1 = state[[-4, -3, -2, 9]]
-		fps1 = get_fps(window)
 
 		little.append(little1)
 		mid.append(mid1)
@@ -330,7 +374,14 @@ if __name__ == "__main__":
 			n_round += 1
 			if n_round % SYNC_STEP == 0: agent.sync_model()
 		
-		if global_count >= 1000:
+		if global_count >= 1201:
 			turn_on_usb_charging()
 			unset_rate_limit_us()
 			break
+
+		"""
+		torch.save(agent.policy_net.state_dict(), "asdf.pt")
+		actor2.load_state_dict(torch.load("asdf.pt", map_location=device))
+		agent.policy_net.state_dict()
+		agent2.policy_net.state_dict()
+		"""
