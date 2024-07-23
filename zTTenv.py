@@ -58,7 +58,9 @@ def action_to_freq(action):
 
 
 class DVFStrain(Env):
-    def __init__(self):
+    def __init__(self, initSleep, experiment):
+
+        self.exp = experiment
 
         # adb root
         set_root()
@@ -85,9 +87,9 @@ class DVFStrain(Env):
 
         turn_off_usb_charging()
 
-        sleep(600)
+        sleep(initSleep)
 
-        set_rate_limit_us(1000000, 2000)
+        set_rate_limit_us(10000000, 20000)
 
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
@@ -96,8 +98,8 @@ class DVFStrain(Env):
         little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(8)
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
-        # wait 1s
-        sleep(0.1)
+        # # wait 1s
+        sleep(1)
 
         fps = get_fps(self.window)
 
@@ -112,9 +114,11 @@ class DVFStrain(Env):
 
         l_t, m_t, b_t, g_t, qi_t, disp_t  = get_temperatures()
 
-        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, m_t, g_t, fps])
+        cpu_t = (l_t + m_t + b_t)/3
+
+        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, cpu_t, g_t, fps])
         
-        self.c_t_prev = m_t
+        self.c_t_prev = cpu_t
         self.g_t_prev = g_t
 
         # no. of rounds
@@ -125,15 +129,15 @@ class DVFStrain(Env):
      
     def step(self, action):
 
-        # energy before
-        t1a, t2a, littlea, mida, biga, gpua = get_energy()
-
         # set dvfs
         little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(action)
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
-        # wait 1s
-        sleep(0.1)
+        # energy before
+        t1a, t2a, littlea, mida, biga, gpua = get_energy()
+
+        # # wait 1s
+        sleep(1)
 
         fps = get_fps(self.window)
 
@@ -149,9 +153,11 @@ class DVFStrain(Env):
 
         l_t, m_t, b_t, g_t, qi_t, batt_t  = get_temperatures()
 
-        reward = get_reward(fps, little + mid + big + gpu, target_fps, m_t, g_t, self.c_t_prev, self.g_t_prev, beta)
+        cpu_t = (l_t + m_t + b_t) / 3
 
-        self.c_t_prev = m_t
+        reward = get_reward(fps, little + mid + big + gpu, target_fps, cpu_t, g_t, self.c_t_prev, self.g_t_prev, beta)
+
+        self.c_t_prev = cpu_t
         self.g_t_prev = g_t
 
         ppw = fps/(little + mid + big + gpu)
@@ -163,7 +169,7 @@ class DVFStrain(Env):
         cpu_index = clk_action_list[action][0]
         gpu_index = clk_action_list[action][1]
 
-        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, m_t, g_t, fps])
+        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, cpu_t, g_t, fps])
 
         self.collected_reward += reward
 

@@ -3,6 +3,28 @@ from time import sleep
 from torch.utils.tensorboard import SummaryWriter
 import time
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--total_timesteps", type=int, default = 1001,
+                    help="total timesteps of the experiments")
+parser.add_argument("--experiment", type=int, default = 1,
+                    help="the type of experiment")
+parser.add_argument("--temperature", type=int, default = 20,
+                    help="the ouside temperature")
+parser.add_argument("--initSleep", type=int, default = 600,
+                    help="initial sleep time")
+parser.add_argument("--loadModel", type=str, default = "no",
+                    help="initial sleep time")
+args = parser.parse_args()
+
+print(args)
+
+total_timesteps = args.total_timesteps
+experiment = args.experiment
+temperature = args.temperature
+initSleep = args.initSleep
+
+
 # adb root
 set_root()
 
@@ -16,11 +38,11 @@ unset_frequency()
 
 turn_off_usb_charging()
 
-sleep(600)
+sleep(initSleep)
 
 unset_rate_limit_us()
 
-run_name = "default__" + str(int(time.time()))
+run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 writer = SummaryWriter(f"runs/{run_name}")
 
 little = []
@@ -32,7 +54,7 @@ fpsLi = []
 powerLi = []
 tempLi = []
 
-for i in range(1001):
+for i in range(total_timesteps):
 
     # energy before
     t1a, t2a, littlea, mida, biga, gpua = get_energy()

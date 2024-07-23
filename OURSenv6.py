@@ -33,23 +33,30 @@ def action_to_freq(action, c_states):
     bi = int(min(action[2], big_len - c_states[2]))
     gi = int(min(action[3], gpu_len - c_states[3]))
 
-    little_min, little_max = little_available_frequencies[li], little_available_frequencies[li]
-    mid_min, mid_max = mid_available_frequencies[mi], mid_available_frequencies[mi]
-    big_min, big_max = big_available_frequencies[bi], big_available_frequencies[bi]
-    gpu_min, gpu_max = gpu_available_frequencies[gi], gpu_available_frequencies[gi]
+    little_max = little_available_frequencies[li]
+    mid_max = mid_available_frequencies[mi]
+    big_max = big_available_frequencies[bi]
+    gpu_max = gpu_available_frequencies[gi]
 
-    return little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max
+    sleepTime = 0.1 * (int(action[4]) + 1)
+    up = 500 + 500 * int(action[5])
+    down = 500 + 500 * int(action[6])
+    gpu = 20 + 10 * int(action[7])
+
+    return little_max, mid_max, big_max, gpu_max, sleepTime, up, down, gpu
 
 def cal_reward(fps, little, mid, big, gpu, freqs, c_states):
 
+    temp = little_len + mid_len + big_len + gpu_len
+
     reward = 0
 
-    reward = fps / (little + mid + big + gpu)
+    reward = fps / (little + mid + big + gpu) * (temp - sum(c_states)) / temp
 
-    target_fps = sum(list(fpsDeque)[-100:]) / min(100, len(fpsDeque))
+    # target_fps = sum(list(fpsDeque)[-100:]) / min(100, len(fpsDeque))
 
-    if fps < target_fps:
-        reward *= fps/target_fps    
+    # if fps < target_fps:
+    #     reward *= fps/target_fps    
 
     return reward
 
@@ -58,10 +65,11 @@ class DVFStrain(Env):
 
         self.exp = experiment
 
-        # fps, temp(6), freq(4), power(4), cluster_util (4), cooling_state (4), prev_time
-        self.observation_space = spaces.Box(low=0, high=100, shape=(24, ), dtype=np.float64)
+        # fps, temp(6), freq(4), power(4), cluster_util (4), cooling_state (4), prev_states (8)
+        self.observation_space = spaces.Box(low=0, high=100, shape=(31, ), dtype=np.float64)
         
-        self.action_space = spaces.MultiDiscrete([11, 14, 17, 12, 30])
+        # max_limit[little mid big gpu] repeat [up_rate down_rate (500 - 10000)] gpu_rate (20-100)
+        self.action_space = spaces.MultiDiscrete([11, 14, 17, 12, 10, 20, 20, 9])
                 
         # no. of rounds
         self.rounds = 0
@@ -82,7 +90,7 @@ class DVFStrain(Env):
 
         sleep(initSleep)
 
-        set_rate_limit_us(10000000, 20000)
+        set_rate_limit_us2(500, 5000, 20)
 
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
@@ -119,7 +127,7 @@ class DVFStrain(Env):
 
         c_states = list(get_cooling_state())
 
-        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, c_states, [0]]).astype(np.float32)
+        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, [0, 0, 0, 0, 0, 0, 9, 0], c_states]).astype(np.float32)
 
         self.state = states
 
@@ -128,15 +136,15 @@ class DVFStrain(Env):
     def step(self, action):
 
         c_states = [self.state[-5], self.state[-4], self.state[-3], self.state[-2]]
-        # set dvfs
-        little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(action, c_states)
-        freqs = np.array([little_min, mid_min, big_min, gpu_min])
-        t1a, t2a, littlea, mida, biga, gpua, a = set_frequency_and_get_energy(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
+        # set limit freq and 
+        little_max, mid_max, big_max, gpu_max, sleepTime, up, down, gpu_rate = action_to_freq(action, c_states)
+        # freqs = np.array([little_max, mid_min, big_min, gpu_min])
+        t1a, t2a, littlea, mida, biga, gpua, a = set_frequency_and_get_energy2(little_max, mid_max, big_max, gpu_max, up, down, gpu_rate)
 
         # wait 0.5s
-        sleep(0.1 * (action[-1]+1))
+        sleep(sleepTime)
 
-        c_states, temps, fps, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util = (get_states(self.window))
+        c_states, temps, fps, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs = (get_states2(self.window))
 
         if len(fpsDeque) >= 100:
             fpsDeque.pop()
@@ -154,7 +162,7 @@ class DVFStrain(Env):
         mid_u = cpu_util[4:6].mean()*100
         big_u = cpu_util[6:8].mean()*100
 
-        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, c_states, [action[-1]]]).astype(np.float32)
+        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, action, c_states]).astype(np.float32)
 
         self.state = states
         obs = states
@@ -166,9 +174,9 @@ class DVFStrain(Env):
         times = 0.1 * (action[-1]+1)
 
         # observation update
-        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":times}
+        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":times}
 
-        ac = [little_min, mid_min, big_min, gpu_min]
+        ac = freqs
 
         self.collected_reward += reward
 

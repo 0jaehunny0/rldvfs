@@ -227,7 +227,7 @@ def get_ob_phone(a, aa):
 	gpu_freq = [gpu_f]
 	cpu_freq = [little_f, mid_f, big_f]
 	gpu_thremal= [gpu_t]
-	cpu_thremal = np.array([mid_t])
+	cpu_thremal = np.array([(little_t + mid_t + big_t) / 3])
 	
 
 	b = get_core_util()
@@ -260,6 +260,28 @@ def action_to_freq(action):
 
 if __name__ == "__main__":
 	
+
+	import argparse
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--total_timesteps", type=int, default = 1001,
+						help="total timesteps of the experiments")
+	parser.add_argument("--experiment", type=int, default = 1,
+						help="the type of experiment")
+	parser.add_argument("--temperature", type=int, default = 20,
+						help="the ouside temperature")
+	parser.add_argument("--initSleep", type=int, default = 600,
+						help="initial sleep time")
+	parser.add_argument("--loadModel", type=str, default = "no",
+						help="initial sleep time")
+	args = parser.parse_args()
+
+	print(args)
+
+	total_timesteps = args.total_timesteps
+	experiment = args.experiment
+	temperature = args.temperature
+	initSleep = args.initSleep
+
 	N_S, N_A, N_B = 5, 3, 11
 
 	# Test/Train Demo for DQN_AB
@@ -277,8 +299,13 @@ if __name__ == "__main__":
 
 	global_count = 0
 
-	run_name = "gearDVFS__" + str(int(time.time()))
+	run_name = "gearDVFS__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 	writer = SummaryWriter(f"runs/{run_name}")
+
+	if len(args.loadModel) > 2:
+		agent.policy_net.load_state_dict(torch.load("save/"+args.loadModel+"_policy_net.pt"))
+		agent.target_net.load_state_dict(torch.load("save/"+args.loadModel+"_target_net.pt"))
+		
 
 	little = []
 	mid = []
@@ -305,7 +332,7 @@ if __name__ == "__main__":
 
 	unset_frequency()
 
-	sleep(600)
+	sleep(initSleep)
 
 	set_rate_limit_us(10000000, 20000)
 
@@ -374,9 +401,11 @@ if __name__ == "__main__":
 			n_round += 1
 			if n_round % SYNC_STEP == 0: agent.sync_model()
 		
-		if global_count >= 1201:
+		if global_count >= total_timesteps:
 			turn_on_usb_charging()
 			unset_rate_limit_us()
+			torch.save(agent.policy_net.state_dict(), "save/"+run_name+"_policy_net.pt")
+			torch.save(agent.target_net.state_dict(), "save/"+run_name+"_target_net.pt")
 			break
 
 		"""

@@ -14,7 +14,7 @@ import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 # from my_env import DogTrain
-from OURSenv4 import DVFStrain 
+from OURSenv5 import DVFStrain 
 from utils2 import *
 import time
 
@@ -38,7 +38,7 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "DVFStrain4"
+    env_id: str = "DVFStrain5"
     """the environment id of the task"""
     total_timesteps: int = 1001
     """total timesteps of the experiments"""

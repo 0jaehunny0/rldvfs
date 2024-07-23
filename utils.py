@@ -97,19 +97,19 @@ def get_window():
     result = result.split("\n")
     ans = "asdf"
     for i in range(len(result)):
-        if "Current layers" in result[i]:
-            print(result[i+4])
-            ans = result[i+4]
+        if "Fingerprint" in result[i]:
+            print(result[i+3])
+            if "Letterbox" in result[i+3]: continue
+            ans = result[i+3]
             break
-    ans = ans.split("[")
-    ans = ans[1][:-1]
-
+    ans = ans.split("Layer ")[-1][1:-1]
+    
     window = ans
     return ans
 
 
 def get_fps(window):
-    msg = 'adb shell dumpsys SurfaceFlinger --latency ' + window
+    msg = 'adb shell dumpsys SurfaceFlinger --latency ' + '"' + window + '"'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     result = result.stdout.decode('utf-8')
     result = result.split("\n")
@@ -153,22 +153,22 @@ def get_battery_power():
     return [float(abs(current)*abs(voltage))] # mW
 
 def get_temperatures():
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone9/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/BIG/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     big = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone10/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/MID/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     mid = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone11/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/LITTLE/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     little = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone12/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/G3D/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     gpu = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone17/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/qi_therm/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     qi = int(result.stdout.decode('utf-8'))
-    msg = 'adb shell cat /sys/devices/virtual/thermal/thermal_zone23/temp'
+    msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     battery = int(result.stdout.decode('utf-8'))
     
@@ -176,24 +176,60 @@ def get_temperatures():
     return little/1000, mid/1000, big/1000, gpu/1000, qi/1000, battery/1000
 
 def set_rate_limit_us(rate_limit_us, dvfs_period): # us / ms
-    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
     msg = 'adb shell "echo '+str(dvfs_period)+' > /sys/class/misc/mali0/device/dvfs_period"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
 
+
 def unset_rate_limit_us():
-    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+"5000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+"20000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-    msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+    msg = 'adb shell "echo '+"20000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"500"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"500"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+"500"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
     msg = 'adb shell "echo '+"20"+' > /sys/class/misc/mali0/device/dvfs_period"'
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
+
+# def set_rate_limit_us(rate_limit_us, dvfs_period): # us / ms
+#     msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+str(rate_limit_us)+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+str(dvfs_period)+' > /sys/class/misc/mali0/device/dvfs_period"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
+# def unset_rate_limit_us():
+#     msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+"10000"+' > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rate_limit_us"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+#     msg = 'adb shell "echo '+"20"+' > /sys/class/misc/mali0/device/dvfs_period"'
+#     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
 
 def set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max):
     """ little """

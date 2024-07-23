@@ -42,14 +42,11 @@ def action_to_freq(action, c_states):
 
 def cal_reward(fps, little, mid, big, gpu, freqs, c_states):
 
+    temp = little_len + mid_len + big_len + gpu_len
+
     reward = 0
 
-    reward = fps / (little + mid + big + gpu)
-
-    target_fps = sum(list(fpsDeque)[-100:]) / min(100, len(fpsDeque))
-
-    if fps < target_fps:
-        reward *= fps/target_fps    
+    reward = fps / (little + mid + big + gpu) * (temp - sum(c_states)) / temp
 
     return reward
 

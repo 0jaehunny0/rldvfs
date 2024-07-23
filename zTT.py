@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 from zTTenv import DVFStrain
 import matplotlib.pyplot as plt
 from utils import *
-
+import sys
 
 @dataclass
 class Args:
@@ -46,7 +46,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "zTT"
     """the id of the environment"""
-    total_timesteps: int = 1000
+    total_timesteps: int = 1201
     """total timesteps of the experiments"""
     learning_rate: float = 0.05
     """the learning rate of the optimizer"""
@@ -58,7 +58,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 1.0
     """the target network update rate"""
-    target_network_frequency: int = 500
+    target_network_frequency: int = 1
     """the timesteps it takes to update the target network"""
     batch_size: int = 64
     """the batch size of sample from the reply memory"""
@@ -73,11 +73,19 @@ class Args:
     train_frequency: int = 10
     """the frequency of training"""
 
+    experiment: int = 1
+    """the type of experiment"""
+    temperature: int = 20
+    """the ouside temperature"""
+    initSleep: int = 600
+    """initial sleep time"""
+    loadModel: str = "no"
+    """the save path of model"""
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain()
+        env = DVFStrain(args.initSleep, args.experiment)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
@@ -134,10 +142,14 @@ if __name__ == "__main__":
     lossLi = []
     tempLi = []
 
+    print("asdf")
+
     args = tyro.cli(Args)
     assert args.num_envs == 1, "vectorized envs are not supported at the moment"
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    
+    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
+
+
+
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
         "hyperparameters",
@@ -162,6 +174,11 @@ if __name__ == "__main__":
     optimizer = optim.Adam(q_network.parameters(), lr=args.learning_rate)
     target_network = QNetwork(envs).to(device)
     target_network.load_state_dict(q_network.state_dict())
+
+    if len(args.loadModel) > 2:
+        q_network.load_state_dict(torch.load("save/"+args.loadModel+"_q_network.pt", map_location=device))
+        target_network.load_state_dict(torch.load("save/"+args.loadModel+"_target_network.pt", map_location=device))
+
 
     rb = ReplayBuffer(
         args.buffer_size,
@@ -302,3 +319,7 @@ if __name__ == "__main__":
     unset_rate_limit_us()
     envs.close()
     writer.close()
+
+
+    torch.save(q_network.state_dict(), "save/"+run_name+"_q_network.pt")
+    torch.save(target_network.state_dict(), "save/"+run_name+"_target_network.pt")
