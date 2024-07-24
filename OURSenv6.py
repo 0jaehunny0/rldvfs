@@ -45,13 +45,26 @@ def action_to_freq(action, c_states):
 
     return little_max, mid_max, big_max, gpu_max, sleepTime, up, down, gpu
 
-def cal_reward(fps, little, mid, big, gpu, freqs, c_states):
+def cal_reward(fps, little, mid, big, gpu, action, c_states):
 
     temp = little_len + mid_len + big_len + gpu_len
 
     reward = 0
 
-    reward = fps / (little + mid + big + gpu) * (temp - sum(c_states)) / temp
+
+
+    li = max(0, action[0] - (little_len - c_states[0]))
+    mi = max(0, action[1] - (mid_len - c_states[1]))
+    bi = max(0, action[2] - (big_len - c_states[2]))
+    gi = max(0, action[3] - (gpu_len - c_states[3]))
+
+    miss = li + mi + bi + gi
+    miss = ((temp - miss) / temp) ** 0.5
+
+    c_state_reward = ((temp - sum(c_states)) / temp) ** 0.5
+
+    # reward = fps / (little + mid + big + gpu) * c_state_reward
+    reward = fps / (little + mid + big + gpu) * miss * c_state_reward
 
     # target_fps = sum(list(fpsDeque)[-100:]) / min(100, len(fpsDeque))
 
@@ -80,6 +93,12 @@ class DVFStrain(Env):
         # adb root
         set_root()
         
+        turn_off_screen()
+
+        turn_on_screen()
+        
+        sleep(initSleep)
+
         turn_on_screen()
 
         set_brightness(158)
@@ -88,7 +107,6 @@ class DVFStrain(Env):
 
         turn_off_usb_charging()
 
-        sleep(initSleep)
 
         set_rate_limit_us2(500, 5000, 20)
 
@@ -171,10 +189,10 @@ class DVFStrain(Env):
 
         ppw = fps/(little*100 + mid*100 + big*100 + gpu*100)
 
-        times = 0.1 * (action[-1]+1)
+        
 
         # observation update
-        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":times}
+        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":sleepTime, "uptime":up, "downtime":down, "gputime":gpu_rate}
 
         ac = freqs
 
@@ -194,6 +212,8 @@ class DVFStrain(Env):
         return self.state, {"a":1}
     
     def render(self, action, rw):
-        print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
-        print(f"Total Reward : {self.collected_reward}")
-        print("=============================================================================")
+        if self.rounds % 10 == 0:
+            print(self.rounds, end = " ")
+        # print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
+        # print(f"Total Reward : {self.collected_reward}")
+        # print("=============================================================================")

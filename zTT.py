@@ -247,20 +247,7 @@ if __name__ == "__main__":
                 if global_step % 10 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
                     writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
-                    writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
-                    writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
-                    writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
-                    writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
-                    writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
-                    writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_step)
-                    writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
-                    writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
-                    writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
-                    writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
-                    writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
-                    writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
-                    writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
+
 
                 # optimize the model
                 optimizer.zero_grad()
@@ -281,6 +268,22 @@ if __name__ == "__main__":
             old_val = q_network(data.observations).gather(1, data.actions).squeeze()
             loss = F.mse_loss(td_target, old_val)
             # target_max = max(target_max)
+        
+        if global_step % 10 == 0:
+            writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+            writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+            writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+            writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+            writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+            writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+            writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+            writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+            writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+            writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+            writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+            writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
 
         lossLi.append(float(loss))
 

@@ -48,7 +48,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 64
+    batch_size: int = 100
     """the batch size of sample from the reply memory"""
     learning_starts: int = 100
     """timestep to start learning"""
@@ -217,6 +217,9 @@ if __name__ == "__main__":
     lossLi = []
     tempLi = []
     timeLi = []
+    upLi = []
+    downLi = []
+    gpuLi = []
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
@@ -241,12 +244,18 @@ if __name__ == "__main__":
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
         times = infos["final_info"][0]["time"]
+        up_rate = infos["final_info"][0]["uptime"]
+        down_rate = infos["final_info"][0]["downtime"]
+        gpu_rate = infos["final_info"][0]["gputime"]
 
         fpsLi.append(fps)
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
         timeLi.append(times)
+        upLi.append(up_rate)
+        downLi.append(down_rate)
+        gpuLi.append(gpu_rate)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -313,21 +322,27 @@ if __name__ == "__main__":
             if global_step % 10 == 0:
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
-                writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
-                writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
-                writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
-                writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
-                writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
-                writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
-                writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
-                writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
-                writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
-                writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
-                writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
-                writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
-                writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
-                writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
-                writer.add_scalar("losses/time", np.array(timeLi)[-10:].mean(), global_step)
+
+
+        if global_step % 10 == 0:
+            writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+            writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+            writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+            writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+            writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+            writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
+            writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+            writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+            writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+            writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+            writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+            writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+            writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
+            writer.add_scalar("losses/time", np.array(timeLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/up", np.array(upLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/down", np.array(downLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/gpu_time", np.array(gpuLi)[-10:].mean(), global_step)
 
 
     turn_on_usb_charging()

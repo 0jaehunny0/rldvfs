@@ -176,7 +176,7 @@ def cal_cpu_reward(cpu_utils,cpu_temps,cluster_num):
     temp_thre = 60
     reward_value = 0.0
     cpu_t =cpu_temps[0]
-    print('cpu',end=': ')
+    # print('cpu',end=': ')
     for cpu_u in cpu_utils:
         if cpu_u < cpu_u_min and cpu_u > cpu_u_max:
             d =lambda_value
@@ -187,7 +187,7 @@ def cal_cpu_reward(cpu_utils,cpu_temps,cluster_num):
         else:
             w = -2
         reward_value += d
-        print(f"{d}",end=',')
+        # print(f"{d}",end=',')
     
     return reward_value/cluster_num
   
@@ -199,7 +199,7 @@ def cal_gpu_reward(gpu_utils,gpu_temps,num):
     u,v,w = -0.05,0.051,0.1
     temp_thre = 60
     reward_value = 0
-    print('gpu',end=': ')
+    # print('gpu',end=': ')
     for gpu_u,gpu_t in zip(gpu_utils,gpu_temps):
         if gpu_u < gpu_u_min and gpu_u > gpu_u_max:
             d =lambda_value
@@ -210,7 +210,7 @@ def cal_gpu_reward(gpu_utils,gpu_temps,num):
         else:
             w = -2
         reward_value += d
-        print(f"{d}",end=',')
+        # print(f"{d}",end=',')
     return reward_value/num 
 
 def get_ob_phone(a, aa):
@@ -246,7 +246,7 @@ def get_ob_phone(a, aa):
 
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
-	print()
+	# print()
 	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], fps
 
 def action_to_freq(action):
@@ -324,6 +324,12 @@ if __name__ == "__main__":
 	
 	turn_off_usb_charging()
 
+	turn_off_screen()
+
+	turn_on_screen()
+	
+	sleep(initSleep)
+
 	turn_on_screen()
 
 	set_brightness(158)
@@ -332,7 +338,6 @@ if __name__ == "__main__":
 
 	unset_frequency()
 
-	sleep(initSleep)
 
 	set_rate_limit_us(10000000, 20000)
 
@@ -379,6 +384,7 @@ if __name__ == "__main__":
 			losses = agent.train(n_round,n_update,n_batch)
 
 			if global_count % 10 == 0 and global_count != 0:
+				print(global_count, end = " ")
 				writer.add_scalar("losses/loss", losses[-1], global_count)
 				writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_count)
 				writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_count)

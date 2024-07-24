@@ -8,9 +8,9 @@ set_root()
 
 # turn_on_screen()
 
-set_brightness(158)
+# set_brightness(158)
 
-window = get_window()
+# window = get_window()
 
 unset_frequency()
 
@@ -51,14 +51,14 @@ def get_all_temperatures():
 
     return big, mid, little, gpu, qi, battery, disp, gnss, neutral, TPU, ISP, quiet, usb1, usb2
 
-for i in range(300):
+for i in range(1200):
 
     temps.append(list(get_all_temperatures()))
     sleep(0.5)
 
-turn_off_screen()
+# turn_off_screen()
 
-for i in range(2000):
+for i in range(3600):
 
     sleep(0.5)
 

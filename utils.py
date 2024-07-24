@@ -28,6 +28,32 @@ mid_max_freq = 2253000
 big_max_freq = 2802000 
 gpu_max_freq = 848000
 
+def wait_temp(temp):
+    msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode('utf-8')
+    result = result.split("\n")
+    battery = int(result[0])/1000
+
+    if battery > temp + 1:
+        turn_off_screen()
+    elif battery < temp - 1:
+        turn_on_screen()
+        set_brightness(158)
+    else:
+        return
+
+    while True:
+        sleep(1)    
+        msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
+        result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+        result = result.stdout.decode('utf-8')
+        result = result.split("\n")
+        battery = int(result[0])/1000
+
+        if battery < temp + 1 and battery > temp - 1:
+            break
+
 def get_core_util():
 	msg = 'adb shell cat /proc/stat'
 	result = subprocess.run(msg.split(), stdout=subprocess.PIPE)

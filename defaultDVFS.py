@@ -28,6 +28,12 @@ initSleep = args.initSleep
 # adb root
 set_root()
 
+turn_off_screen()
+
+turn_on_screen()
+
+sleep(initSleep)
+
 turn_on_screen()
 
 set_brightness(158)
@@ -38,7 +44,6 @@ unset_frequency()
 
 turn_off_usb_charging()
 
-sleep(initSleep)
 
 unset_rate_limit_us()
 
@@ -87,6 +92,7 @@ for i in range(total_timesteps):
     powerLi.append(little_p + mid_p + big_p + gpu_p)
 
     if i % 10 == 0 and i != 0:
+        print(i, end = " ")
         writer.add_scalar("freq/little", np.array(little)[-10:].mean(), i)
         writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), i)
         writer.add_scalar("freq/big", np.array(big)[-10:].mean(), i)

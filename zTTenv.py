@@ -65,6 +65,12 @@ class DVFStrain(Env):
         # adb root
         set_root()
 
+        turn_off_screen()
+
+        turn_on_screen()
+        
+        sleep(initSleep)
+
         turn_on_screen()
 
         set_brightness(158)
@@ -87,7 +93,6 @@ class DVFStrain(Env):
 
         turn_off_usb_charging()
 
-        sleep(initSleep)
 
         set_rate_limit_us(10000000, 20000)
 
@@ -218,6 +223,8 @@ class DVFStrain(Env):
         return self.state, {"a":1}
     
     def render(self, action, rw):
-        print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
-        print(f"Total Reward : {self.collected_reward}")
-        print("=============================================================================")
+        if self.rounds % 10 == 0:
+              print(self.rounds, end = " ")
+        # print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
+        # print(f"Total Reward : {self.collected_reward}")
+        # print("=============================================================================")
