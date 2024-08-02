@@ -358,3 +358,29 @@ def get_cooling_state():
     big = int(result[2])
     gpu = int(result[3])
     return little, mid, big, gpu
+
+
+def get_packet_info(proc_num: int, target: str) -> tuple[int, int]:
+    msg = f"adb shell cat /proc/{proc_num}/net/dev"
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode("utf-8")
+    result = result.split('\n')
+    result = list(filter(lambda l: 'wlan0' in l, result))[0]
+    result = result.split()
+    if target == "byte":
+        received_packet, transmitted_packet = int(result[1]), int(result[9])
+    elif target == "packet":
+        received_packet, transmitted_packet = int(result[2]), int(result[1])
+
+    return received_packet, transmitted_packet
+
+def get_pid(window):
+     
+    app_name = window.split("/")[0]
+
+    msg = 'adb shell pidof -s ' + app_name
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode('utf-8')
+    result = int(result.split('\n')[0])
+
+    return result 
