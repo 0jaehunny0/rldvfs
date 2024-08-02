@@ -29,38 +29,45 @@ mydict = {}
 ppwDict = {}
 myfpsDict = {}
 tempDict = {}
-for subdir, dirs, files in os.walk("test4"):
+
+custompath = "runs/interval test/starrail"
+custompath = "runs/interval test/aquarium"
+
+for subdir, dirs, files in os.walk(custompath):
     a = subdir.split("/")
 
     
 
-    if len(a) > 1:
-        mykey = a[1].split("_")[0]
+    if len(a) > 3:
+        mykey = a[-1].split("__")[0]
         if mykey not in mydict:
             mydict[mykey] = []
             ppwDict[mykey] = []
             myfpsDict[mykey] = []
             tempDict[mykey] = []
 
-for subdir, dirs, files in os.walk("test4"):
+for subdir, dirs, files in os.walk(custompath):
     # print(subdir)
     for file in files:
 
         a = subdir.split("/")
-        if len(a) > 1:
-            mykey = a[1].split("_")[0]
+        if len(a) > 3:
+            mykey = a[-1].split("__")[0]
 
         filepath = subdir + os.sep + file
         if "events" in filepath:
             x = parse_tensorboard(filepath, scalars)
             print(subdir, x["perf/ppw"][-50:]["value"].mean())
-            # print(subdir, x["perf/fps"][-10:]["value"].mean())
 
-            mydict[mykey].append(x["perf/ppw"][-30:]["value"].mean())
-            
-            myfpsDict[mykey].append(x["perf/fps"][-30:]["value"].mean())
-            tempDict[mykey].append(x["temp/gpu"][-30:]["value"].mean())
-            # mydict[mykey] = 
+            # mydict[mykey].append(x["perf/ppw"][-30:]["value"].mean()) 
+            # myfpsDict[mykey].append(x["perf/fps"][-30:]["value"].mean())
+            # tempDict[mykey].append(x["temp/gpu"][-30:]["value"].mean())
+
+            mydict[mykey].append(x["perf/ppw"][71:128]["value"].mean()) 
+            myfpsDict[mykey].append(x["perf/fps"][71:128]["value"].mean())
+            tempDict[mykey].append(x["temp/gpu"][71:128]["value"].mean())
+
+
 
 ppwDict = {}
 for k,v in mydict.items():

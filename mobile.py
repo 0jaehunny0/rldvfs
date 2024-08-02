@@ -174,9 +174,15 @@ if __name__ == "__main__":
     model = actor
     torchscript_model = torch.jit.script(model)
     torchscript_model_optimized = optimize_for_mobile(torchscript_model)
-    torch.jit.save(torchscript_model_optimized, "model.pt")
+    torch.jit.save(torchscript_model_optimized, "model2.pt")
     
+    traced_script_module = torch.jit.trace(model)
+    traced_script_module_optimized = optimize_for_mobile(traced_script_module)
+    traced_script_module_optimized._save_for_lite_interpreter("model3.ptl")
+
+
     XXX = torch.jit.load("model.pt")
+    
 
     # states = np.array([34.612766 , 57.61118  , 69.707664 , 93.645836 , 83.       ,
     #     3.7997386,  1.3318955,  7.994837 ,  2.2368195, 69.       ,

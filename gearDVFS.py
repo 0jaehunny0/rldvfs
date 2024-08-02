@@ -240,6 +240,8 @@ def get_ob_phone(a, aa):
 
 	fps = get_fps(window)
 
+	util_li = np.concatenate([cpu_util, gpu_util])
+
 
 	# 16个数据
 	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,power2]).astype(np.float32)
@@ -247,7 +249,7 @@ def get_ob_phone(a, aa):
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
 	# print()
-	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], fps
+	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], fps, util_li
 
 def action_to_freq(action):
 
@@ -273,6 +275,8 @@ if __name__ == "__main__":
 						help="initial sleep time")
 	parser.add_argument("--loadModel", type=str, default = "no",
 						help="initial sleep time")
+	parser.add_argument("--timeOut", type=int, default = 60*30,
+                    help="end time")
 	args = parser.parse_args()
 
 	print(args)
@@ -319,10 +323,20 @@ if __name__ == "__main__":
 	lossLi = []
 	tempLi = []
 
+	l1Li = []
+	l2Li = []
+	l3Li = []
+	l4Li = []
+	m1Li = []
+	m2Li = []
+	b1Li = []
+	b2Li = []
+	guLi = []
+
 	# adb root
 	set_root()
 	
-	turn_off_usb_charging()
+	# turn_off_usb_charging()
 
 	turn_off_screen()
 
@@ -345,8 +359,14 @@ if __name__ == "__main__":
 	aa = get_energy()
 	sleep(0.2)
 
+	start_time = time.time()
+
 	while True:
-		state, reward, power1, temps, fps1 = get_ob_phone(a, aa)
+
+		if time.time() - start_time > args.timeOut:
+			break
+
+		state, reward, power1, temps, fps1, util_li = get_ob_phone(a, aa)
 		agent.eps = EPS_END + (EPS_START - EPS_END) * \
                 math.exp(-1. * g_step / EPS_DECAY)
 		action = agent.select_action(torch.from_numpy(state).unsqueeze(0))
@@ -378,6 +398,16 @@ if __name__ == "__main__":
 		rewardLi.append(reward)
 		tempLi.append(temps)
 
+		l1Li.append(util_li[0])
+		l2Li.append(util_li[1])
+		l3Li.append(util_li[2])
+		l4Li.append(util_li[3])
+		m1Li.append(util_li[4])
+		m2Li.append(util_li[5])
+		b1Li.append(util_li[6])
+		b2Li.append(util_li[7])
+		guLi.append(util_li[8])
+
 		if (record_count%5==0 and record_count!=0):
 
 			# train loop
@@ -401,6 +431,26 @@ if __name__ == "__main__":
 				writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_count)
 				writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_count)
 
+				little_c, mid_c, big_c, gpu_c = get_cooling_state()
+				writer.add_scalar("cstate/little", little_c, global_count)
+				writer.add_scalar("cstate/mid", mid_c, global_count)
+				writer.add_scalar("cstate/big", big_c, global_count)
+				writer.add_scalar("cstate/gpu", gpu_c, global_count)
+
+				writer.add_scalar("util/l1", np.array(l1Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/l2", np.array(l2Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/l3", np.array(l3Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/l4", np.array(l4Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/m1", np.array(m1Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/m2", np.array(m2Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/b1", np.array(b1Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/b2", np.array(b2Li)[-10:].mean(), global_count)
+				writer.add_scalar("util/gu", np.array(guLi)[-10:].mean(), global_count)
+				writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, global_count)
+				writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, global_count)
+				writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, global_count)
+
+
 			# Reset initial states/actions to None
 			prev_state,prev_action,record_count = None,None,0
 			# save model
@@ -410,6 +460,8 @@ if __name__ == "__main__":
 		if global_count >= total_timesteps:
 			turn_on_usb_charging()
 			unset_rate_limit_us()
+			turn_off_screen()
+			unset_frequency()
 			torch.save(agent.policy_net.state_dict(), "save/"+run_name+"_policy_net.pt")
 			torch.save(agent.target_net.state_dict(), "save/"+run_name+"_target_net.pt")
 			break

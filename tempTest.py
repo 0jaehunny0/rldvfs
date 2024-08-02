@@ -85,3 +85,7 @@ x.plot()
 import pickle
 with open('temp exp.pkl', 'wb') as f:
 	pickle.dump(x, f, protocol=pickle.HIGHEST_PROTOCOL)
+     
+
+with open('temp exp.pkl', 'rb') as f:
+	x = pickle.load(f)

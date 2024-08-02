@@ -49,7 +49,23 @@ unset_frequency()
 
 unset_rate_limit_us()
 
-run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
+msg = 'adb shell "echo '+"500"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+msg = 'adb shell "echo '+"2000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+msg = 'adb shell "echo '+"2000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+msg = 'adb shell "echo '+"50"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+msg = 'adb shell "echo '+"50"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+msg = 'adb shell "echo '+"50"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+msg = 'adb shell "echo '+"2"+' > /sys/class/misc/mali0/device/dvfs_period"'
+subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()    
+
+run_name = "default2__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 writer = SummaryWriter(f"runs/{run_name}")
 
 little = []
@@ -61,16 +77,6 @@ fpsLi = []
 powerLi = []
 tempLi = []
 
-l1Li = []
-l2Li = []
-l3Li = []
-l4Li = []
-m1Li = []
-m2Li = []
-b1Li = []
-b2Li = []
-guLi = []
-
 start_time = time.time()
 
 for i in range(total_timesteps):
@@ -81,7 +87,6 @@ for i in range(total_timesteps):
 
     # energy before
     t1a, t2a, littlea, mida, biga, gpua = get_energy()
-    a = get_core_util()
 
     sleep(1)
 
@@ -91,12 +96,6 @@ for i in range(total_timesteps):
 
     # energy after
     t1b, t2b, littleb, midb, bigb, gpub = get_energy()
-    b = get_core_util()
-
-    gpu_util = get_gpu_util()
-    cpu_util = list(cal_core_util(b,a))
-
-    util_li = np.concatenate([cpu_util, gpu_util])
 
     little.append(freqs[0])
     mid.append(freqs[1])
@@ -104,17 +103,7 @@ for i in range(total_timesteps):
     gpu.append(freqs[3])
     fpsLi.append(fps)
     tempLi.append(list(get_temperatures()))
-
-    l1Li.append(util_li[0])
-    l2Li.append(util_li[1])
-    l3Li.append(util_li[2])
-    l4Li.append(util_li[3])
-    m1Li.append(util_li[4])
-    m2Li.append(util_li[5])
-    b1Li.append(util_li[6])
-    b2Li.append(util_li[7])
-    guLi.append(util_li[8])
-
+    
     # reward - energy
     little_p = (littleb - littlea)/(t1b-t1a)
     mid_p = (midb - mida)/(t1b-t1a)
@@ -147,21 +136,6 @@ for i in range(total_timesteps):
         writer.add_scalar("cstate/mid", mid_c, i)
         writer.add_scalar("cstate/big", big_c, i)
         writer.add_scalar("cstate/gpu", gpu_c, i)
-
-        writer.add_scalar("util/l1", np.array(l1Li)[-10:].mean(), i)
-        writer.add_scalar("util/l2", np.array(l2Li)[-10:].mean(), i)
-        writer.add_scalar("util/l3", np.array(l3Li)[-10:].mean(), i)
-        writer.add_scalar("util/l4", np.array(l4Li)[-10:].mean(), i)
-        writer.add_scalar("util/m1", np.array(m1Li)[-10:].mean(), i)
-        writer.add_scalar("util/m2", np.array(m2Li)[-10:].mean(), i)
-        writer.add_scalar("util/b1", np.array(b1Li)[-10:].mean(), i)
-        writer.add_scalar("util/b2", np.array(b2Li)[-10:].mean(), i)
-        writer.add_scalar("util/gu", np.array(guLi)[-10:].mean(), i)
-        writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, i)
-        writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, i)
-        writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, i)
-
-
 
 
 turn_on_usb_charging()

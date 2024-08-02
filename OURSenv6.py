@@ -12,16 +12,16 @@ from utils2 import *
 from collections import deque
 
 
-def get_cooling_state():
-    msg = 'adb shell cat /dev/thermal/cdev-by-name/thermal-cpufreq-0/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-1/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-2/cur_state /dev/thermal/cdev-by-name/thermal-gpufreq-0/cur_state'
-    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
-    result = result.stdout.decode('utf-8')
-    result = result.split("\n")
-    little = int(result[0])
-    mid = int(result[1])
-    big = int(result[2])
-    gpu = int(result[3])
-    return little, mid, big, gpu
+# def get_cooling_state():
+#     msg = 'adb shell cat /dev/thermal/cdev-by-name/thermal-cpufreq-0/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-1/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-2/cur_state /dev/thermal/cdev-by-name/thermal-gpufreq-0/cur_state'
+#     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+#     result = result.stdout.decode('utf-8')
+#     result = result.split("\n")
+#     little = int(result[0])
+#     mid = int(result[1])
+#     big = int(result[2])
+#     gpu = int(result[3])
+#     return little, mid, big, gpu
 
 fpsDeque = deque()
 temp_ths = 45
@@ -105,7 +105,7 @@ class DVFStrain(Env):
 
         self.window = get_window()
 
-        turn_off_usb_charging()
+        # turn_off_usb_charging()
 
 
         set_rate_limit_us2(500, 5000, 20)
@@ -189,10 +189,10 @@ class DVFStrain(Env):
 
         ppw = fps/(little*100 + mid*100 + big*100 + gpu*100)
 
-        
+        util_li = np.concatenate([cpu_util, gpu_util])
 
         # observation update
-        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":sleepTime, "uptime":up, "downtime":down, "gputime":gpu_rate}
+        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":sleepTime, "uptime":up, "downtime":down, "gputime":gpu_rate, "util" : util_li}
 
         ac = freqs
 

@@ -26,7 +26,7 @@ for i in range(3):
 def get_reward(fps, power, target_fps, c_t, g_t, c_t_prev, g_t_prev, beta):
 	v1=0
 	v2=0
-	print('power={}'.format(power))
+	# print('power={}'.format(power))
 	u=max(1,fps/target_fps)
 
 	if g_t<= target_temp:
@@ -91,7 +91,7 @@ class DVFStrain(Env):
         
         unset_frequency()
 
-        turn_off_usb_charging()
+        # turn_off_usb_charging()
 
 
         set_rate_limit_us(10000000, 20000)
@@ -141,6 +141,8 @@ class DVFStrain(Env):
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
 
+        a = get_core_util()
+
         # # wait 1s
         sleep(1)
 
@@ -148,6 +150,12 @@ class DVFStrain(Env):
 
         # energy after
         t1b, t2b, littleb, midb, bigb, gpub = get_energy()
+        b = get_core_util()
+        cpu_util = np.array(list(cal_core_util(b,a)))
+        gpu_util = get_gpu_util()
+
+        util_li = np.concatenate([cpu_util, gpu_util])
+
 
         # reward - energy
         little = (littleb - littlea)/(t1b-t1a)
@@ -167,7 +175,7 @@ class DVFStrain(Env):
 
         ppw = fps/(little + mid + big + gpu)
 
-        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp": [l_t, m_t, b_t, g_t, qi_t, batt_t]}
+        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp": [l_t, m_t, b_t, g_t, qi_t, batt_t], "util" : util_li}
 
         ac = [little_min, mid_min, big_min, gpu_min]
 

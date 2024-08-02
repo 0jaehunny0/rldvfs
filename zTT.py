@@ -81,6 +81,8 @@ class Args:
     """initial sleep time"""
     loadModel: str = "no"
     """the save path of model"""
+    timeOut: int = 30 * 60
+    """the end time"""
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
@@ -142,6 +144,16 @@ if __name__ == "__main__":
     lossLi = []
     tempLi = []
 
+    l1Li = []
+    l2Li = []
+    l3Li = []
+    l4Li = []
+    m1Li = []
+    m2Li = []
+    b1Li = []
+    b2Li = []
+    guLi = []
+
     print("asdf")
 
     args = tyro.cli(Args)
@@ -193,6 +205,9 @@ if __name__ == "__main__":
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
 
+        if time.time() - start_time > args.timeOut:
+            break
+
         ts.append(global_step)
 
         # ALGO LOGIC: put action logic here
@@ -218,11 +233,23 @@ if __name__ == "__main__":
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
+        util_li = infos["final_info"][0]["util"]
 
         fpsLi.append(fps)
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
+
+        l1Li.append(util_li[0])
+        l2Li.append(util_li[1])
+        l3Li.append(util_li[2])
+        l4Li.append(util_li[3])
+        m1Li.append(util_li[4])
+        m2Li.append(util_li[5])
+        b1Li.append(util_li[6])
+        b2Li.append(util_li[7])
+        guLi.append(util_li[8])
+
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -285,6 +312,27 @@ if __name__ == "__main__":
             writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
             writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
 
+            little_c, mid_c, big_c, gpu_c = get_cooling_state()
+            writer.add_scalar("cstate/little", little_c, global_step)
+            writer.add_scalar("cstate/mid", mid_c, global_step)
+            writer.add_scalar("cstate/big", big_c, global_step)
+            writer.add_scalar("cstate/gpu", gpu_c, global_step)
+
+            writer.add_scalar("util/l1", np.array(l1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l2", np.array(l2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l3", np.array(l3Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l4", np.array(l4Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m1", np.array(m1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m2", np.array(m2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b1", np.array(b1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b2", np.array(b2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/gu", np.array(guLi)[-10:].mean(), global_step)
+            writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, global_step)
+            writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, global_step)
+            writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, global_step)
+
+
+
         lossLi.append(float(loss))
 
         # ax1.plot(ts, fpsLi, linewidth=1, color='pink')
@@ -320,6 +368,8 @@ if __name__ == "__main__":
         # plt.pause(0.1)
     turn_on_usb_charging()
     unset_rate_limit_us()
+    turn_off_screen()
+    unset_frequency()
     envs.close()
     writer.close()
 

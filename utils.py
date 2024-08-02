@@ -35,9 +35,9 @@ def wait_temp(temp):
     result = result.split("\n")
     battery = int(result[0])/1000
 
-    if battery > temp + 1:
+    if battery > temp + 0.5:
         turn_off_screen()
-    elif battery < temp - 1:
+    elif battery < temp - 0.5:
         turn_on_screen()
         set_brightness(158)
     else:
@@ -51,7 +51,7 @@ def wait_temp(temp):
         result = result.split("\n")
         battery = int(result[0])/1000
 
-        if battery < temp + 1 and battery > temp - 1:
+        if battery < temp + 0.5 and battery > temp - 0.5:
             break
 
 def get_core_util():
@@ -304,6 +304,8 @@ def unset_frequency():
 def set_root(): 
     msg = 'adb root'
     subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    msg = 'adb shell setenforce 0'
+    subprocess.run(msg.split(), stdout=subprocess.PIPE)
 
 def set_brightness(level):
     msg = 'adb shell settings put system screen_brightness '+str(level)
@@ -345,3 +347,14 @@ def turn_on_usb_charging():
     # msg = 'adb shell dumpsys battery set usb 1'
     msg = 'adb shell dumpsys battery reset'
     subprocess.run(msg.split(), stdout=subprocess.PIPE)
+
+def get_cooling_state():
+    msg = 'adb shell cat /dev/thermal/cdev-by-name/thermal-cpufreq-0/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-1/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-2/cur_state /dev/thermal/cdev-by-name/thermal-gpufreq-0/cur_state'
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode('utf-8')
+    result = result.split("\n")
+    little = int(result[0])
+    mid = int(result[1])
+    big = int(result[2])
+    gpu = int(result[3])
+    return little, mid, big, gpu

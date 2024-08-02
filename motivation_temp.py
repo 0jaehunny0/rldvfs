@@ -91,7 +91,6 @@ temps = []
 
 turn_on_screen()
 set_brightness(158)
-turn_off_screen()
 unset_frequency()
 unset_rate_limit_us()
 
@@ -102,9 +101,15 @@ setLittle(args.little, args.little, 151000, 151000)
 # setLittle(1197000, 1197000, 151000, 151000)
 # setLittle(1598000, 1598000, 151000, 151000)
 
-turn_off_screen()
+# turn_off_screen()
 # for i in range(15000):
-for i in range(6000):
+turn_off_screen()
+
+sleep(1)
+
+turn_off_screen()
+
+for i in range(9000):
     res = list(get_all_temperatures())
     temps.append(res)
     if i % 5 == 0:
@@ -119,7 +124,7 @@ for i in range(6000):
 
 turn_on_screen()
 # for i in range(15000, 15000+3000):
-for i in range(6000, 6000 + 3000):
+for i in range(9000, 9000 + 9000):
     res = list(get_all_temperatures())
     temps.append(res)
     if i % 5 == 0:
