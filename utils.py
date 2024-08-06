@@ -51,6 +51,12 @@ def wait_temp(temp):
         result = result.split("\n")
         battery = int(result[0])/1000
 
+        if battery > temp + 0.5:
+            turn_off_screen()
+        elif battery < temp - 0.5:
+            turn_on_screen()
+            set_brightness(158)
+
         if battery < temp + 0.5 and battery > temp - 0.5:
             break
 
