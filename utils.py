@@ -129,6 +129,7 @@ def get_window():
             ans = result[i+3]
             break
     ans = ans.split("Layer ")[-1][1:-1]
+    ans = ans.replace("]", "")
     
     window = ans
     return ans
