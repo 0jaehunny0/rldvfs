@@ -73,6 +73,9 @@ guLi = []
 
 start_time = time.time()
 
+t1a, t2a, littlea, mida, biga, gpua = get_energy()
+a = get_core_util()
+
 for i in range(total_timesteps):
 
     if time.time() - start_time > args.timeOut:
@@ -80,8 +83,8 @@ for i in range(total_timesteps):
 
 
     # energy before
-    t1a, t2a, littlea, mida, biga, gpua = get_energy()
-    a = get_core_util()
+    # t1a, t2a, littlea, mida, biga, gpua = get_energy()
+    # a = get_core_util()
 
     sleep(1)
 
@@ -120,6 +123,9 @@ for i in range(total_timesteps):
     mid_p = (midb - mida)/(t1b-t1a)
     big_p = (bigb - biga)/(t1b-t1a)
     gpu_p = (gpub - gpua)/(t2b-t2a)
+
+    t1a, t2a, littlea, mida, biga, gpua = t1b, t2b, littleb, midb, bigb, gpub
+    a = b
 
     ppw = fps/(little_p + mid_p + big_p + gpu_p)
 
