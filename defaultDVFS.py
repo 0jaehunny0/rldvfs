@@ -17,7 +17,7 @@ parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")
 parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
-parser.add_argument("--qos", choices=['fps', 'byte', 'packet'],
+parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
                     help="Quality of Service")
 args = parser.parse_args()
 
