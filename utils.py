@@ -388,16 +388,26 @@ def get_pid(window):
     app_name = app_name.replace("SurfaceView", "")
     app_name = app_name.replace("[", "")
     app_name = app_name.replace("]", "")
+    app_name = app_name.replace("SurfaceView", "")
+    app_name = app_name.replace("[", "")
+    app_name = app_name.replace("]", "")
 
     msg = 'adb shell pidof -s ' + app_name
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     result = result.stdout.decode('utf-8')
-    result = int(result.split('\n')[0])
+    pid = int(result.split('\n')[0])
 
-    return result
+    return pid
 
-def cal_packet(packets: tuple[tuple[int, int]], time: tuple[float, float]) -> float:
-    transmitted_diff = packets[1][0] - packets[0][0]
-    received_diff = packets[1][1] - packets[0][1]
-    total_diff = transmitted_diff + received_diff
-    return total_diff / ((time[1] - time[0]) * 1000)
+def get_jank(pid):
+
+    msg = 'adb shell dumpsys gfxinfo ' + str(pid)
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode('utf-8')
+    result = result.split("\n")
+
+    start = int(result[5].split(":")[1][:-2])
+    totalFrame = int(result[6].split(":")[1])
+    jankyFrame = int(result[7].split(":")[1].split("(")[0])
+
+    return totalFrame, jankyFrame

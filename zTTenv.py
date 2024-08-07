@@ -89,9 +89,7 @@ class DVFStrain(Env):
 
         turn_off_usb_charging()
 
-        sleep(initSleep)
-
-        set_rate_limit_us(10000000, 20000)
+        set_rate_limit_us(1000000000, 2000000)
 
         # energy before
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
@@ -151,6 +149,9 @@ class DVFStrain(Env):
         
         # reward collected
         self.collected_reward = 0
+
+        self.last_energy = t1b, t2b, littleb, midb, bigb, gpub
+        self.last_util = get_core_util()
      
     def step(self, action):
 
@@ -159,7 +160,11 @@ class DVFStrain(Env):
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
         # energy before
-        t1a, t2a, littlea, mida, biga, gpua = get_energy()
+        # t1a, t2a, littlea, mida, biga, gpua = get_energy()
+        t1a, t2a, littlea, mida, biga, gpua = self.last_energy
+
+        # a = get_core_util()
+        a = self.last_util
 
         # # wait 1s
         sleep(1)
@@ -218,6 +223,9 @@ class DVFStrain(Env):
         self.render(ac, reward)
             
         self.state = obs
+
+        self.last_energy = t1b, t2b, littleb, midb, bigb, gpub
+        self.last_util = b
 
         return obs, reward, True, False, info
     

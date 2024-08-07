@@ -375,7 +375,7 @@ if __name__ == "__main__":
 	unset_frequency()
 
 
-	set_rate_limit_us(10000000, 20000)
+	set_rate_limit_us(1000000000, 2000000)
 
 	a = get_core_util()
 	aa = get_energy()

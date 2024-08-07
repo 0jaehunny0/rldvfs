@@ -111,6 +111,24 @@ def set_frequency_and_get_energy2(little_max, mid_max, big_max, gpu_max, up, dow
 
     return t1, t2, little, mid, big, gpu, np.array(li)
 
+def set_frequency_and_no_get_energy(little_max, mid_max, big_max, gpu_max, up, down, gpu_rate):
+
+    msg = 'adb shell "echo '+str(big_max)+' > /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq'    
+    msg += ' && echo '+str(little_max)+' > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq'
+    msg += ' && echo '+str(mid_max)+' > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq'
+    msg += ' && echo '+str(gpu_max)+' > /sys/class/misc/mali0/device/scaling_max_freq'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(gpu_rate)+' > /sys/class/misc/mali0/device/dvfs_period'
+	
+    msg += '"'
+
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
 
 def get_states(window):
     
