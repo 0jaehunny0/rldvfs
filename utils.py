@@ -395,3 +395,9 @@ def get_pid(window):
     result = int(result.split('\n')[0])
 
     return result
+
+def cal_packet(packets: tuple[tuple[int, int]], time: tuple[float, float]) -> float:
+    transmitted_diff = packets[1][0] - packets[0][0]
+    received_diff = packets[1][1] - packets[0][1]
+    total_diff = transmitted_diff + received_diff
+    return total_diff / (time[1] - time[0]) * 10000

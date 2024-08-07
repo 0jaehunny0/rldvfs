@@ -79,6 +79,15 @@ start_time = time.time()
 
 t1a, t2a, littlea, mida, biga, gpua = get_energy()
 a = get_core_util()
+match qos_type:
+    case "fps":
+        pass
+    case "byte":
+        byte_prev = get_packet_info(window, qos_type)
+        qos_time_prev = time.time()
+    case "packet":
+        packet_prev = get_packet_info(window, qos_type)
+        qos_time_prev = time.time()
 
 for i in range(total_timesteps):
 
@@ -96,9 +105,19 @@ for i in range(total_timesteps):
         case "fps":
             qos = get_fps(window)
         case "byte":
-            qos = get_packet_info(window, qos_type)
+            byte_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
+            print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+            byte_prev = byte_cur
+            qos_time_prev = qos_time_cur
         case "packet":
-            qos = get_packet_info(window, qos_type)
+            packet_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((packet_prev, packet_cur), (qos_time_prev, qos_time_cur))
+            packet_prev = packet_cur
+            qos_time_prev = qos_time_cur
+            
 
     freqs = np.array(get_frequency())
 
