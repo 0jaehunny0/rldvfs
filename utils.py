@@ -400,4 +400,4 @@ def cal_packet(packets: tuple[tuple[int, int]], time: tuple[float, float]) -> fl
     transmitted_diff = packets[1][0] - packets[0][0]
     received_diff = packets[1][1] - packets[0][1]
     total_diff = transmitted_diff + received_diff
-    return total_diff / (time[1] - time[0]) * 10000
+    return total_diff / ((time[1] - time[0]) * 10000)
