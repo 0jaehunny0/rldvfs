@@ -24,6 +24,8 @@ from gearDVFSmodel import DQN_v0, ReplayMemory, DQN_AB
 
 from torch.utils.tensorboard import SummaryWriter
 
+from typing import Optional
+
 """
 RL Agents are responsible for train/inference
 Available Agents:
@@ -213,7 +215,7 @@ def cal_gpu_reward(gpu_utils,gpu_temps,num):
         # print(f"{d}",end=',')
     return reward_value/num 
 
-def get_ob_phone(a, aa):
+def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional[int], packet_prev: Optional[int]):
     # State Extraction and Reward Calculation
 
 	t1a, t2a, littlea, mida, biga, gpua = aa
@@ -238,7 +240,22 @@ def get_ob_phone(a, aa):
 	power = (littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)
 	power2 = get_battery_power()
 
-	fps = get_fps(window)
+	byte_cur = None
+	packet_cur = None
+	match qos_type:
+		case "fps":
+			qos = get_fps(window)
+		case "byte":
+			byte_cur = get_packet_info(window, qos_type)
+			qos_time_cur = time.time()
+			qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
+			print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+			byte_prev = byte_cur
+		case "packet":
+			packet_cur = get_packet_info(window, qos_type)
+			qos_time_cur = time.time()
+			qos = cal_packet((packet_prev, packet_cur), (qos_time_prev, qos_time_cur))
+			packet_prev = packet_cur
 
 	util_li = np.concatenate([cpu_util, gpu_util])
 
@@ -249,7 +266,7 @@ def get_ob_phone(a, aa):
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
 	# print()
-	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], fps, util_li
+	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], qos, util_li, qos_time_cur, byte_cur, packet_cur
 
 def action_to_freq(action):
 
@@ -277,6 +294,8 @@ if __name__ == "__main__":
 						help="initial sleep time")
 	parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
+	parser.add_argument("--qos", choices=['fps', 'byte', 'packet'],
+                    help="Quality of Service")
 	args = parser.parse_args()
 
 	print(args)
@@ -285,6 +304,7 @@ if __name__ == "__main__":
 	experiment = args.experiment
 	temperature = args.temperature
 	initSleep = args.initSleep
+	qos_type = args.qos
 
 	N_S, N_A, N_B = 5, 3, 11
 
@@ -318,6 +338,8 @@ if __name__ == "__main__":
 	ppw = []
 	ts = []
 	fpsLi = []
+	bytesLi = []
+	packetsLi = []
 	rewardLi = []
 	powerLi = []
 	lossLi = []
@@ -357,6 +379,14 @@ if __name__ == "__main__":
 
 	a = get_core_util()
 	aa = get_energy()
+	qos_time_prev = time.time()
+	byte_prev = None
+	packet_prev = None
+	match qos_type:
+		case "byte":
+			byte_prev = get_packet_info(window, qos_type)
+		case "packet":
+			packet_prev = get_packet_info(window, qos_type)
 	sleep(0.2)
 
 	start_time = time.time()
@@ -366,7 +396,7 @@ if __name__ == "__main__":
 		if time.time() - start_time > args.timeOut:
 			break
 
-		state, reward, power1, temps, fps1, util_li = get_ob_phone(a, aa)
+		state, reward, power1, temps, qos, util_li, qos_time_cur, byte_cur, packet_cur = get_ob_phone(a, aa, qos_type, qos_time_prev, byte_prev, packet_prev)
 		agent.eps = EPS_END + (EPS_START - EPS_END) * \
                 math.exp(-1. * g_step / EPS_DECAY)
 		action = agent.select_action(torch.from_numpy(state).unsqueeze(0))
@@ -381,6 +411,10 @@ if __name__ == "__main__":
 		a = get_core_util()
 		aa = get_energy()
 
+		qos_time_prev = qos_time_cur
+		byte_prev = byte_cur
+		packet_prev = packet_cur
+
 		sleep(0.2)
 
 		record_count+=1
@@ -392,8 +426,14 @@ if __name__ == "__main__":
 		mid.append(mid1)
 		big.append(big1)
 		gpu.append(gpu1)
-		ppw.append(fps1/power1)
-		fpsLi.append(fps1)
+		ppw.append(qos/power1)
+		match qos_type:
+			case "fps":
+				fpsLi.append(qos)
+			case "byte":
+				bytesLi.append(qos)
+			case "packet":
+				packetsLi.append(qos)	
 		powerLi.append(power1)
 		rewardLi.append(reward)
 		tempLi.append(temps)
@@ -423,7 +463,13 @@ if __name__ == "__main__":
 				writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_count)
 				writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_count)
 				writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_count)
-				writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_count)
+				match qos_type:
+					case "fps":
+						writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_count)
+					case "byte":
+						writer.add_scalar("perf/bytes", np.array(bytesLi)[-10:].mean(), global_count)
+					case "packet":
+						writer.add_scalar("perf/packets", np.array(packetsLi)[-10:].mean(), global_count)
 				writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_count)
 				writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_count)
 				writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_count)
