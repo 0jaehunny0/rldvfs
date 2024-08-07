@@ -29,7 +29,7 @@ mydict = {}
 ppwDict = {}
 myfpsDict = {}
 tempDict = {}
-for subdir, dirs, files in os.walk("test4"):
+for subdir, dirs, files in os.walk("test3"):
     a = subdir.split("/")
 
     
@@ -42,7 +42,7 @@ for subdir, dirs, files in os.walk("test4"):
             myfpsDict[mykey] = []
             tempDict[mykey] = []
 
-for subdir, dirs, files in os.walk("test4"):
+for subdir, dirs, files in os.walk("test3"):
     # print(subdir)
     for file in files:
 
@@ -56,10 +56,10 @@ for subdir, dirs, files in os.walk("test4"):
             print(subdir, x["perf/ppw"][-50:]["value"].mean())
             # print(subdir, x["perf/fps"][-10:]["value"].mean())
 
-            mydict[mykey].append(x["perf/ppw"][-30:]["value"].mean())
+            mydict[mykey].append(x["perf/ppw"][:]["value"].mean())
             
-            myfpsDict[mykey].append(x["perf/fps"][-30:]["value"].mean())
-            tempDict[mykey].append(x["temp/gpu"][-30:]["value"].mean())
+            myfpsDict[mykey].append(x["perf/fps"][:]["value"].mean())
+            tempDict[mykey].append(x["temp/gpu"][:]["value"].mean())
             # mydict[mykey] = 
 
 ppwDict = {}
@@ -76,5 +76,19 @@ temps = {}
 for k,v in tempDict.items():
     # v is the list of grades for student k
     temps[k] = sum(v)/ float(len(v))
+
+print(1 - ppwDict['default'] / ppwDict['DVFStrain6'])
+print(1 - ppwDict['zTT'] / ppwDict['DVFStrain6'])
+print(1 - ppwDict['gearDVFS'] / ppwDict['DVFStrain6'])
+
+print(1 - fpsDict['default'] / fpsDict['DVFStrain6'])
+print(1 - fpsDict['zTT'] / fpsDict['DVFStrain6'])
+print(1 - fpsDict['gearDVFS'] / fpsDict['DVFStrain6'])
+
+
+print(1 - temps['default'] / temps['DVFStrain6'])
+print(1 - temps['zTT'] / temps['DVFStrain6'])
+print(1 - temps['gearDVFS'] / temps['DVFStrain6'])
+
 
 a=1

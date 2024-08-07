@@ -30,8 +30,9 @@ ppwDict = {}
 myfpsDict = {}
 tempDict = {}
 
-custompath = "runs/interval test/starrail"
 custompath = "runs/interval test/aquarium"
+custompath = "runs/interval test/starrail"
+custompath = "runs/interval test/seascape"
 
 for subdir, dirs, files in os.walk(custompath):
     a = subdir.split("/")
@@ -59,13 +60,13 @@ for subdir, dirs, files in os.walk(custompath):
             x = parse_tensorboard(filepath, scalars)
             print(subdir, x["perf/ppw"][-50:]["value"].mean())
 
-            # mydict[mykey].append(x["perf/ppw"][-30:]["value"].mean()) 
-            # myfpsDict[mykey].append(x["perf/fps"][-30:]["value"].mean())
-            # tempDict[mykey].append(x["temp/gpu"][-30:]["value"].mean())
+            mydict[mykey].append(x["perf/ppw"][-30:]["value"].mean()) 
+            myfpsDict[mykey].append(x["perf/fps"][-30:]["value"].mean())
+            tempDict[mykey].append(x["temp/gpu"][-30:]["value"].mean())
 
-            mydict[mykey].append(x["perf/ppw"][71:128]["value"].mean()) 
-            myfpsDict[mykey].append(x["perf/fps"][71:128]["value"].mean())
-            tempDict[mykey].append(x["temp/gpu"][71:128]["value"].mean())
+            # mydict[mykey].append(x["perf/ppw"][71:128]["value"].mean()) 
+            # myfpsDict[mykey].append(x["perf/fps"][71:128]["value"].mean())
+            # tempDict[mykey].append(x["temp/gpu"][71:128]["value"].mean())
 
 
 
@@ -73,6 +74,8 @@ ppwDict = {}
 for k,v in mydict.items():
     # v is the list of grades for student k
     ppwDict[k] = sum(v)/ float(len(v))
+
+(1  - ppwDict['default3']/ppwDict['default']) * 100
 
 fpsDict = {}
 for k,v in myfpsDict.items():

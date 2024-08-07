@@ -79,7 +79,7 @@ class DVFStrain(Env):
         self.exp = experiment
 
         # fps, temp(6), freq(4), power(4), cluster_util (4), cooling_state (4), prev_states (8)
-        self.observation_space = spaces.Box(low=0, high=100, shape=(31, ), dtype=np.float64)
+        self.observation_space = spaces.Box(low=0, high=100, shape=(29, ), dtype=np.float64)
         
         # max_limit[little mid big gpu] repeat [up_rate down_rate (500 - 10000)] gpu_rate (20-100)
         self.action_space = spaces.MultiDiscrete([11, 14, 17, 12, 10, 20, 20, 9])
@@ -119,6 +119,7 @@ class DVFStrain(Env):
 
         # current state 
         temps = np.array(get_temperatures())
+        temps = temps[:4]
         freqs = np.array(get_frequency())
 
         fps = get_fps(self.window)
@@ -171,6 +172,8 @@ class DVFStrain(Env):
         sleep(sleepTime)
 
         c_states, temps, fps, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs = (get_states2(self.window))
+
+        temps = temps[:4]
 
         if len(fpsDeque) >= 100:
             fpsDeque.pop()
