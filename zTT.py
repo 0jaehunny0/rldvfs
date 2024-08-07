@@ -81,11 +81,15 @@ class Args:
     """initial sleep time"""
     loadModel: str = "no"
     """the save path of model"""
+    timeOut: int = 30 * 60
+    """the end time"""
+    qos: str = "fps"
+    """Quality of Service type"""
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain(args.initSleep, args.experiment)
+        env = DVFStrain(args.initSleep, args.experiment, args.qos)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
@@ -137,6 +141,8 @@ if __name__ == "__main__":
 
     ts = []
     fpsLi = []
+    bytesLi = []
+    packetsLi = []
     rewardLi = []
     powerLi = []
     lossLi = []
@@ -148,7 +154,7 @@ if __name__ == "__main__":
     assert args.num_envs == 1, "vectorized envs are not supported at the moment"
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
 
-
+    qos_type = args.qos
 
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -214,12 +220,18 @@ if __name__ == "__main__":
         big.append(infos["final_info"][0]["big"])
         gpu.append(infos["final_info"][0]["gpu"])
         ppw.append(infos["final_info"][0]["ppw"])
-        fps = infos["final_info"][0]["fps"]
+        qos = infos["final_info"][0]["qos"]
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
 
-        fpsLi.append(fps)
+        match qos_type:
+            case "fps":
+                fpsLi.append(qos)
+            case "byte":
+                bytesLi.append(qos)
+            case "packet":
+                packetsLi.append(qos)
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
@@ -281,6 +293,43 @@ if __name__ == "__main__":
             old_val = q_network(data.observations).gather(1, data.actions).squeeze()
             loss = F.mse_loss(td_target, old_val)
             # target_max = max(target_max)
+        
+        if global_step % 10 == 0:
+            writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+            writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+            writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+            writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+            writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+            writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+            writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+            writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+            writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+            writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+            writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+            writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
+
+            little_c, mid_c, big_c, gpu_c = get_cooling_state()
+            writer.add_scalar("cstate/little", little_c, global_step)
+            writer.add_scalar("cstate/mid", mid_c, global_step)
+            writer.add_scalar("cstate/big", big_c, global_step)
+            writer.add_scalar("cstate/gpu", gpu_c, global_step)
+
+            writer.add_scalar("util/l1", np.array(l1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l2", np.array(l2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l3", np.array(l3Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l4", np.array(l4Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m1", np.array(m1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m2", np.array(m2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b1", np.array(b1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b2", np.array(b2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/gu", np.array(guLi)[-10:].mean(), global_step)
+            writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, global_step)
+            writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, global_step)
+            writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, global_step)
+
+
 
         lossLi.append(float(loss))
 
