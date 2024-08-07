@@ -367,7 +367,8 @@ def get_cooling_state():
     return little, mid, big, gpu
 
 
-def get_packet_info(proc_num: int, target: str) -> tuple[int, int]:
+def get_packet_info(window, target: str) -> tuple[int, int]:
+    proc_num = get_pid(window)
     msg = f"adb shell cat /proc/{proc_num}/net/dev"
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     result = result.stdout.decode("utf-8")
@@ -384,10 +385,13 @@ def get_packet_info(proc_num: int, target: str) -> tuple[int, int]:
 def get_pid(window):
      
     app_name = window.split("/")[0]
+    app_name = app_name.replace("SurfaceView", "")
+    app_name = app_name.replace("[", "")
+    app_name = app_name.replace("]", "")
 
     msg = 'adb shell pidof -s ' + app_name
     result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
     result = result.stdout.decode('utf-8')
     result = int(result.split('\n')[0])
 
-    return result 
+    return result
