@@ -411,3 +411,9 @@ def get_jank(pid):
     jankyFrame = int(result[7].split(":")[1].split("(")[0])
 
     return totalFrame, jankyFrame
+
+def cal_packet(bytes: tuple[tuple[int, int]], time: tuple[float, float]) -> float:
+    transmitted_diff = bytes[1][0] - bytes[0][0]
+    received_diff = bytes[1][1] - bytes[0][1]
+    total_diff = transmitted_diff + received_diff
+    return total_diff / ((time[1] - time[0]) * 1000)
