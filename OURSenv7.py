@@ -6,6 +6,8 @@ import numpy as np
 
 import subprocess
 from time import sleep
+import time
+# from utils import *
 
 from utils2 import *
 
@@ -23,7 +25,7 @@ from collections import deque
 #     gpu = int(result[3])
 #     return little, mid, big, gpu
 
-fpsDeque = deque()
+qosDeque = deque()
 temp_ths = 45
 
 def action_to_freq(action, c_states):
@@ -45,7 +47,7 @@ def action_to_freq(action, c_states):
 
     return little_max, mid_max, big_max, gpu_max, sleepTime, up, down, gpu
 
-def cal_reward(fps, little, mid, big, gpu, action, c_states):
+def cal_reward(qos: float, little, mid, big, gpu, action, c_states):
 
     temp = little_len + mid_len + big_len + gpu_len
 
@@ -64,7 +66,7 @@ def cal_reward(fps, little, mid, big, gpu, action, c_states):
     c_state_reward = ((temp - sum(c_states)) / temp) ** 0.5
 
     # reward = fps / (little + mid + big + gpu) * c_state_reward
-    reward = fps / (little + mid + big + gpu) * miss * c_state_reward
+    reward = qos / (little + mid + big + gpu) * miss * c_state_reward
 
     # target_fps = sum(list(fpsDeque)[-100:]) / min(100, len(fpsDeque))
 
@@ -74,9 +76,10 @@ def cal_reward(fps, little, mid, big, gpu, action, c_states):
     return reward
 
 class DVFStrain(Env):
-    def __init__(self, initSleep, experiment):
+    def __init__(self, initSleep, experiment, qos_type: str):
 
         self.exp = experiment
+        self.qos_type = qos_type
 
         # fps, temp(6), freq(4), power(4), cluster_util (4), cooling_state (4), prev_states (8)
         self.observation_space = spaces.Box(low=0, high=100, shape=(29, ), dtype=np.float64)
@@ -114,6 +117,14 @@ class DVFStrain(Env):
         t1a, t2a, littlea, mida, biga, gpua = get_energy()
         a = get_core_util()
 
+        self.qos_time_prev = time.time()
+        self.byte_prev = None
+        self.packet_prev = None
+        match qos_type:
+            case "byte":
+                self.byte_prev = get_packet_info(self.window, qos_type)
+            case "packet":
+                self.packet_prev = get_packet_info(self.window, qos_type)
         # wait 0.5s
         sleep(0.1)
 
@@ -122,9 +133,24 @@ class DVFStrain(Env):
         temps = temps[:4]
         freqs = np.array(get_frequency())
 
-        fps = get_fps(self.window)
+        match qos_type:
+            case "fps":
+                qos = get_fps(self.window)
+            case "byte":
+                byte_cur = get_packet_info(self.window, qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.byte_prev, byte_cur), (self.qos_time_prev, qos_time_cur))
+                print(byte_cur[1] - self.byte_prev[1], byte_cur[0] - self.byte_prev[0], qos_time_cur - self.qos_time_prev, qos)
+                self.byte_prev = byte_cur
+                self.qos_time_prev = qos_time_cur
+            case "packet":
+                packet_cur = get_packet_info(self.window, qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.packet_prev, packet_cur), (self.qos_time_prev, qos_time_cur))
+                self.packet_prev = packet_cur
+                self.qos_time_prev = qos_time_cur
 
-        fpsDeque.appendleft(fps)
+        qosDeque.appendleft(qos)
 
         # energy after
         t1b, t2b, littleb, midb, bigb, gpub = get_energy()
@@ -146,7 +172,7 @@ class DVFStrain(Env):
 
         c_states = list(get_cooling_state())
 
-        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, [0, 0, 0, 0, 0, 0, 9, 0], c_states]).astype(np.float32)
+        states = np.concatenate([[qos], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, [0, 0, 0, 0, 0, 0, 9, 0], c_states]).astype(np.float32)
 
         self.state = states
 
@@ -171,13 +197,19 @@ class DVFStrain(Env):
         # wait 0.5s
         sleep(sleepTime)
 
-        c_states, temps, fps, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs = (get_states2(self.window))
+        c_states, temps, qos, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs, qos_time_cur, byte_cur, packet_cur = (get_states2(self.window, self.qos_type, self.qos_time_prev, self.byte_prev, self.packet_prev))
 
-        temps = temps[:4]
-
-        if len(fpsDeque) >= 100:
-            fpsDeque.pop()
-        fpsDeque.appendleft(fps)
+        match self.qos_type:
+            case "byte":
+                self.byte_prev = byte_cur
+                self.qos_time_prev = qos_time_cur
+            case "packet":
+                self.packet_prev = packet_cur
+                self.qos_time_prev = qos_time_cur
+                
+        if len(qosDeque) >= 100:
+            qosDeque.pop()
+        qosDeque.appendleft(qos)
 
         # reward - energy
         little = (littleb - littlea)/(t1b-t1a)/100
@@ -191,19 +223,19 @@ class DVFStrain(Env):
         mid_u = cpu_util[4:6].mean()*100
         big_u = cpu_util[6:8].mean()*100
 
-        states = np.concatenate([[fps], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, action, c_states]).astype(np.float32)
+        states = np.concatenate([[qos], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps[:4], freqs/30000, action, c_states]).astype(np.float32)
 
         self.state = states
         obs = states
 
-        reward = cal_reward(fps, little, mid, big, gpu, action, c_states)
+        reward = cal_reward(qos, little, mid, big, gpu, action, c_states)
 
-        ppw = fps/(little*100 + mid*100 + big*100 + gpu*100)
+        ppw = qos/(little*100 + mid*100 + big*100 + gpu*100)
 
         util_li = np.concatenate([cpu_util, gpu_util])
 
         # observation update
-        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":sleepTime, "uptime":up, "downtime":down, "gputime":gpu_rate, "util" : util_li}
+        info = {"little": freqs[0], "mid": freqs[1], "big": freqs[2], "gpu": freqs[3], "qos":qos, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp":temps, "time":sleepTime, "uptime":up, "downtime":down, "gputime":gpu_rate, "util" : util_li}
 
         ac = freqs
 

@@ -75,12 +75,14 @@ class Args:
     """the save path of model"""
     timeOut: int = 30 * 60
     """the end time"""
+    qos: str = "fps"
+    """Quality of Service"""
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain(args.initSleep, args.experiment)
+        env = DVFStrain(args.initSleep, args.experiment, args.qos)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         return env
@@ -159,6 +161,8 @@ if __name__ == "__main__":
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
+    qos_type = args.qos
+
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -214,6 +218,8 @@ if __name__ == "__main__":
     ppw = []
     ts = []
     fpsLi = []
+    bytesLi = []
+    packetsLi = []
     rewardLi = []
     powerLi = []
     lossLi = []
@@ -260,7 +266,7 @@ if __name__ == "__main__":
         big.append(infos["final_info"][0]["big"])
         gpu.append(infos["final_info"][0]["gpu"])
         ppw.append(infos["final_info"][0]["ppw"])
-        fps = infos["final_info"][0]["fps"]
+        qos = infos["final_info"][0]["qos"]
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
@@ -270,7 +276,13 @@ if __name__ == "__main__":
         gpu_rate = infos["final_info"][0]["gputime"]
         util_li = infos["final_info"][0]["util"]
 
-        fpsLi.append(fps)
+        match qos_type:
+            case "fps":
+                fpsLi.append(qos)
+            case "byte":
+                bytesLi.append(qos)
+            case "packet":
+                packetsLi.append(qos)
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
@@ -366,7 +378,13 @@ if __name__ == "__main__":
             writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
             writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
             writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
-            writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+            match qos_type:
+                case "fps":
+                    writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+                case "byte":
+                    writer.add_scalar("perf/bytes", np.array(bytesLi)[-10:].mean(), global_step)
+                case "packet":
+                    writer.add_scalar("perf/packets", np.array(packetsLi)[-10:].mean(), global_step)
             writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
             writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
             writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
