@@ -17,6 +17,8 @@ parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")
 parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
+parser.add_argument("--interval", type=int, default = 1,
+                    help="end time")
 args = parser.parse_args()
 
 print(args)
@@ -25,7 +27,7 @@ total_timesteps = args.total_timesteps
 experiment = args.experiment
 temperature = args.temperature
 initSleep = args.initSleep
-
+interval = args.interval
 
 # adb root
 set_root()
@@ -49,23 +51,23 @@ unset_frequency()
 
 unset_rate_limit_us()
 
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+"200000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
 
-msg = 'adb shell "echo '+"200"+' > /sys/class/misc/mali0/device/dvfs_period"'
+msg = 'adb shell "echo '+str(1*interval)+' > /sys/class/misc/mali0/device/dvfs_period"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
 
-run_name = "default2__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
+run_name = "default2"+str(args.interval)+"__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 writer = SummaryWriter(f"runs/{run_name}")
 
 little = []
