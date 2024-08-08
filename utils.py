@@ -132,6 +132,7 @@ def get_window():
         if "Fingerprint" in result[i]:
             print(result[i+3])
             if "Letterbox" in result[i+3]: continue
+            if "Background" in result[i+3]: continue
             ans = result[i+3]
             break
     ans = ans.split("Layer ")[-1][1:-1]
@@ -405,4 +406,24 @@ def get_jank(pid):
     totalFrame = int(result[6].split(":")[1])
     jankyFrame = int(result[7].split(":")[1].split("(")[0])
 
-    return totalFrame, jankyFrame
+    return start, totalFrame, jankyFrame
+
+def get_packet(pid):
+    msg = f"adb shell cat /proc/{pid}/net/dev"
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode("utf-8")
+    result = result.split('\n')
+    result = list(filter(lambda l: 'wlan0' in l, result))[0]
+    result = result.split()
+    received_packet, transmitted_packet = int(result[1]), int(result[9])
+
+    return received_packet, transmitted_packet
+
+def get_loadavg():
+    msg = f"adb shell cat /proc/loadavg"
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode("utf-8")
+    result = float(result.split()[0])
+
+    return result
+
