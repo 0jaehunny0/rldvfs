@@ -2,7 +2,11 @@ import subprocess
 import numpy as np
 
 from time import sleep
+import time
 import random
+
+from typing import Optional
+from utils import *
 
 target_fps=30
 target_temp=65
@@ -182,8 +186,7 @@ def get_states(window):
     return c_states, temps, fps, t1, t2, little_e, mid_e, big_e, gpu_e, np.array(li), gpu_util
 
 
-def get_states2(window):
-    
+def get_states2(window, qos_type: str, qos_time_prev: float, byte_prev: Optional[int], packet_prev: Optional[int]):
     """ temps """
     msg = 'adb shell "'
     msg += ' cat /dev/thermal/tz-by-name/BIG/temp /dev/thermal/tz-by-name/MID/temp /dev/thermal/tz-by-name/LITTLE/temp /dev/thermal/tz-by-name/G3D/temp /dev/thermal/tz-by-name/qi_therm/temp /dev/thermal/tz-by-name/battery/temp'
@@ -235,18 +238,30 @@ def get_states2(window):
 
     freqs = np.array([little, mid, big, gpu])
 
-
-    startTime = int(result[-33].split("\t")[0])
-    lastTime = int(result[-3].split("\t")[-1])  
-    twentyFrameTime = (lastTime - startTime) / 1000000000
-    fps = 30 / twentyFrameTime
+    byte_cur = None
+    packet_cur = None
+    match qos_type:
+        case "fps":              
+            startTime = int(result[-33].split("\t")[0])
+            lastTime = int(result[-3].split("\t")[-1])  
+            twentyFrameTime = (lastTime - startTime) / 1000000000
+            qos = 30 / twentyFrameTime
+        case "byte":
+            byte_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
+            print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+        case "packet":
+            packet_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((packet_prev, packet_cur), (qos_time_prev, qos_time_cur))
 
     c_states = [little_cdev, mid_cdev, big_cdev, gpu_cdev]
 
     temps = [little_temp/1000, mid_temp/1000, big_temp/1000, gpu_temp/1000, qi_temp/1000, battery_temp/1000]
 
 
-    return c_states, temps, fps, t1, t2, little_e, mid_e, big_e, gpu_e, np.array(li), gpu_util, freqs
+    return c_states, temps, qos, t1, t2, little_e, mid_e, big_e, gpu_e, np.array(li), gpu_util, freqs, qos_time_cur, byte_cur, packet_cur
 
 def get_core_util():
 	msg = 'adb shell cat /proc/stat'
@@ -318,6 +333,7 @@ def get_window():
             ans = result[i+3]
             break
     ans = ans.split("Layer ")[-1][1:-1]
+    ans = ans.replace("]", "")
     
     window = ans
     return ans

@@ -11,6 +11,7 @@ import pickle
 import math
 
 from utils import *
+import time
 
 little_available_frequencies = np.array(little_available_frequencies)[[int(np.round(11*2/8))-1, int(np.round(11*5/8))-1, int(np.round(11*8/8))-1]]
 mid_available_frequencies = np.array(mid_available_frequencies)[[int(np.round(14*2/8))-1, int(np.round(14*5/8))-1, int(np.round(14*8/8))-1]]
@@ -26,7 +27,7 @@ for i in range(3):
 def get_reward(fps, power, target_fps, c_t, g_t, c_t_prev, g_t_prev, beta):
 	v1=0
 	v2=0
-	# print('power={}'.format(power))
+	print('power={}'.format(power))
 	u=max(1,fps/target_fps)
 
 	if g_t<= target_temp:
@@ -58,18 +59,13 @@ def action_to_freq(action):
 
 
 class DVFStrain(Env):
-    def __init__(self, initSleep, experiment):
+    def __init__(self, initSleep, experiment, qos_type: str):
 
         self.exp = experiment
+        self.qos_type = qos_type
 
         # adb root
         set_root()
-
-        turn_off_screen()
-
-        turn_on_screen()
-        
-        sleep(initSleep)
 
         turn_on_screen()
 
@@ -91,7 +87,7 @@ class DVFStrain(Env):
         
         unset_frequency()
 
-        # turn_off_usb_charging()
+        turn_off_usb_charging()
 
         set_rate_limit_us(1000000000, 2000000)
 
@@ -101,11 +97,34 @@ class DVFStrain(Env):
         # set dvfs
         little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(8)
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
-
+        self.qos_time_prev = time.time()
+        self.byte_prev = None
+        self.packet_prev = None
+        match qos_type:
+            case "byte":
+                self.byte_prev = get_packet_info(self.window, qos_type)
+            case "packet":
+                self.packet_prev = get_packet_info(self.window, qos_type)
+        
         # # wait 1s
         sleep(1)
 
-        fps = get_fps(self.window)
+        match qos_type:
+            case "fps":
+                qos = get_fps(self.window)
+            case "byte":
+                byte_cur = get_packet_info(self.window, qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.byte_prev, byte_cur), (self.qos_time_prev, qos_time_cur))
+                print(byte_cur[1] - self.byte_prev[1], byte_cur[0] - self.byte_prev[0], qos_time_cur - self.qos_time_prev, qos)
+                self.byte_prev = byte_cur
+                self.qos_time_prev = qos_time_cur
+            case "packet":
+                packet_cur = get_packet_info(self.window, qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.packet_prev, packet_cur), (self.qos_time_prev, qos_time_cur))
+                self.packet_prev = packet_cur
+                self.qos_time_prev = qos_time_cur
 
         # energy after
         t1b, t2b, littleb, midb, bigb, gpub = get_energy()
@@ -120,7 +139,7 @@ class DVFStrain(Env):
 
         cpu_t = (l_t + m_t + b_t)/3
 
-        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, cpu_t, g_t, fps])
+        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos])
         
         self.c_t_prev = cpu_t
         self.g_t_prev = g_t
@@ -150,16 +169,25 @@ class DVFStrain(Env):
         # # wait 1s
         sleep(1)
 
-        fps = get_fps(self.window)
+        match self.qos_type:
+            case "fps":
+                qos = get_fps(self.window)
+            case "byte":
+                byte_cur = get_packet_info(self.window, self.qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.byte_prev, byte_cur), (self.qos_time_prev, qos_time_cur))
+                print(byte_cur[1] - self.byte_prev[1], byte_cur[0] - self.byte_prev[0], qos_time_cur - self.qos_time_prev, qos)
+                self.byte_prev = byte_cur
+                self.qos_time_prev = qos_time_cur
+            case "packet":
+                packet_cur = get_packet_info(self.window, self.qos_type)
+                qos_time_cur = time.time()
+                qos = cal_packet((self.packet_prev, packet_cur), (self.qos_time_prev, qos_time_cur))
+                self.packet_prev = packet_cur
+                self.qos_time_prev = qos_time_cur
 
         # energy after
         t1b, t2b, littleb, midb, bigb, gpub = get_energy()
-        b = get_core_util()
-        cpu_util = np.array(list(cal_core_util(b,a)))
-        gpu_util = get_gpu_util()
-
-        util_li = np.concatenate([cpu_util, gpu_util])
-
 
         # reward - energy
         little = (littleb - littlea)/(t1b-t1a)
@@ -172,21 +200,21 @@ class DVFStrain(Env):
 
         cpu_t = (l_t + m_t + b_t) / 3
 
-        reward = get_reward(fps, little + mid + big + gpu, target_fps, cpu_t, g_t, self.c_t_prev, self.g_t_prev, beta)
+        reward = get_reward(qos, little + mid + big + gpu, target_fps, cpu_t, g_t, self.c_t_prev, self.g_t_prev, beta)
 
         self.c_t_prev = cpu_t
         self.g_t_prev = g_t
 
-        ppw = fps/(little + mid + big + gpu)
+        ppw = qos/(little + mid + big + gpu)
 
-        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "fps":fps, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp": [l_t, m_t, b_t, g_t, qi_t, batt_t], "util" : util_li}
+        info = {"little": little_min, "mid": mid_min, "big": big_min, "gpu": gpu_min, "qos":qos, "power":little + mid + big + gpu, "reward":reward, "ppw":ppw, "temp": [l_t, m_t, b_t, g_t, qi_t, batt_t], "util" : util_li}
 
         ac = [little_min, mid_min, big_min, gpu_min]
 
         cpu_index = clk_action_list[action][0]
         gpu_index = clk_action_list[action][1]
 
-        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, cpu_t, g_t, fps])
+        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos])
 
         self.collected_reward += reward
 
@@ -238,8 +266,6 @@ class DVFStrain(Env):
         return self.state, {"a":1}
     
     def render(self, action, rw):
-        if self.rounds % 10 == 0:
-              print(self.rounds, end = " ")
-        # print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
-        # print(f"Total Reward : {self.collected_reward}")
-        # print("=============================================================================")
+        print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
+        print(f"Total Reward : {self.collected_reward}")
+        print("=============================================================================")

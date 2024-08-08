@@ -17,6 +17,8 @@ parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")
 parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
+parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
+                    help="Quality of Service")
 args = parser.parse_args()
 
 print(args)
@@ -25,7 +27,7 @@ total_timesteps = args.total_timesteps
 experiment = args.experiment
 temperature = args.temperature
 initSleep = args.initSleep
-
+qos_type = args.qos
 
 # adb root
 set_root()
@@ -60,6 +62,8 @@ ppwLi = []
 fpsLi = []
 powerLi = []
 tempLi = []
+bytesLi = []
+packetsLi = []
 
 l1Li = []
 l2Li = []
@@ -75,6 +79,15 @@ start_time = time.time()
 
 t1a, t2a, littlea, mida, biga, gpua = get_energy()
 a = get_core_util()
+match qos_type:
+    case "fps":
+        pass
+    case "byte":
+        byte_prev = get_packet_info(window, qos_type)
+        qos_time_prev = time.time()
+    case "packet":
+        packet_prev = get_packet_info(window, qos_type)
+        qos_time_prev = time.time()
 
 for i in range(total_timesteps):
 
@@ -88,7 +101,23 @@ for i in range(total_timesteps):
 
     sleep(1)
 
-    fps = get_fps(window)
+    match qos_type:
+        case "fps":
+            qos = get_fps(window)
+        case "byte":
+            byte_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
+            print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+            byte_prev = byte_cur
+            qos_time_prev = qos_time_cur
+        case "packet":
+            packet_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((packet_prev, packet_cur), (qos_time_prev, qos_time_cur))
+            packet_prev = packet_cur
+            qos_time_prev = qos_time_cur
+            
 
     freqs = np.array(get_frequency())
 
@@ -105,7 +134,13 @@ for i in range(total_timesteps):
     mid.append(freqs[1])
     big.append(freqs[2])
     gpu.append(freqs[3])
-    fpsLi.append(fps)
+    match qos_type:
+        case "fps":
+            fpsLi.append(qos)
+        case "byte":
+            bytesLi.append(qos)
+        case "packet":
+            packetsLi.append(qos)
     tempLi.append(list(get_temperatures()))
 
     l1Li.append(util_li[0])
@@ -127,7 +162,7 @@ for i in range(total_timesteps):
     t1a, t2a, littlea, mida, biga, gpua = t1b, t2b, littleb, midb, bigb, gpub
     a = b
 
-    ppw = fps/(little_p + mid_p + big_p + gpu_p)
+    ppw = qos/(little_p + mid_p + big_p + gpu_p)
 
     ppwLi.append(ppw)
     powerLi.append(little_p + mid_p + big_p + gpu_p)
@@ -140,7 +175,13 @@ for i in range(total_timesteps):
         writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), i)
         writer.add_scalar("perf/ppw", np.array(ppwLi)[-10:].mean(), i)
         writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean(), i)
-        writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), i)
+        match qos_type:
+            case "fps":
+                writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), i)
+            case "byte":
+                writer.add_scalar("perf/bytes", np.array(bytesLi)[-10:].mean(), i)
+            case "packet":
+                writer.add_scalar("perf/packets", np.array(packetsLi)[-10:].mean(), i)
         writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), i)
         writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), i)
         writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), i)
