@@ -11,7 +11,7 @@ parser.add_argument("--experiment", type=int, default = 1,
                     help="the type of experiment")
 parser.add_argument("--temperature", type=int, default = 20,
                     help="the ouside temperature")
-parser.add_argument("--initSleep", type=int, default = 600,
+parser.add_argument("--initSleep", type=int, default = 1,
                     help="initial sleep time")
 parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")
@@ -38,9 +38,13 @@ sleep(initSleep)
 
 turn_on_screen()
 
+sleep(1)
+
 set_brightness(158)
 
 window = get_window()
+
+pid = get_pid(window)
 
 unset_frequency()
 
@@ -48,6 +52,23 @@ unset_frequency()
 
 
 unset_rate_limit_us()
+
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+# msg = 'adb shell "echo '+"1000000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+# msg = 'adb shell "echo '+"1000"+' > /sys/class/misc/mali0/device/dvfs_period"'
+# subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
 
 run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 writer = SummaryWriter(f"runs/{run_name}")
@@ -76,6 +97,8 @@ start_time = time.time()
 t1a, t2a, littlea, mida, biga, gpua = get_energy()
 a = get_core_util()
 
+received_packeta, transmitted_packeta = get_packet(pid)
+
 for i in range(total_timesteps):
 
     if time.time() - start_time > args.timeOut:
@@ -88,7 +111,16 @@ for i in range(total_timesteps):
 
     sleep(1)
 
-    fps = get_fps(window)
+    # fps = get_fps(window)
+    # totalFrameb, jankyFrameb = get_jank(pid)
+
+    # no jank ratio (higher is better)
+    received_packetb, transmitted_packetb = get_packet(pid)
+    jank = received_packetb + transmitted_packetb - received_packeta - transmitted_packeta
+    fps = jank
+
+    # totalFramea, jankyFramea = totalFrameb, jankyFrameb
+    received_packeta, transmitted_packeta = received_packetb, transmitted_packetb 
 
     freqs = np.array(get_frequency())
 

@@ -27,7 +27,7 @@ for i in range(3):
 def get_reward(fps, power, target_fps, c_t, g_t, c_t_prev, g_t_prev, beta):
 	v1=0
 	v2=0
-	print('power={}'.format(power))
+	# print('power={}'.format(power))
 	u=max(1,fps/target_fps)
 
 	if g_t<= target_temp:
@@ -188,6 +188,11 @@ class DVFStrain(Env):
 
         # energy after
         t1b, t2b, littleb, midb, bigb, gpub = get_energy()
+        b = get_core_util()
+        cpu_util = np.array(list(cal_core_util(b,a)))
+        gpu_util = get_gpu_util()
+
+        util_li = np.concatenate([cpu_util, gpu_util])
 
         # reward - energy
         little = (littleb - littlea)/(t1b-t1a)
@@ -266,6 +271,8 @@ class DVFStrain(Env):
         return self.state, {"a":1}
     
     def render(self, action, rw):
-        print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
-        print(f"Total Reward : {self.collected_reward}")
-        print("=============================================================================")
+        if self.rounds % 10 == 0:
+            print(self.rounds, end = " ")
+        # print(f"Round : {self.rounds}\nDistance Travelled : {np.round(action[0]/1000000, 3), np.round(action[1]/1000000, 3), np.round(action[2]/1000000, 3), np.round(action[3]/1000000, 3)}\nReward Received: {rw}")
+        # print(f"Total Reward : {self.collected_reward}")
+        # print("=============================================================================")

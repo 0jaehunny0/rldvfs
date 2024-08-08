@@ -225,7 +225,7 @@ def get_states2(window, qos_type: str, qos_time_prev: float, byte_prev: Optional
     gpu_e = int(result[26].split()[1])
 
     li = []
-    for i in result[28:36]:
+    for i in result[29:37]:
         temp = np.array(i.split()[1:], dtype=np.int32)
         li.append([temp[0:7].sum(), temp[3]])
 
@@ -240,6 +240,7 @@ def get_states2(window, qos_type: str, qos_time_prev: float, byte_prev: Optional
 
     byte_cur = None
     packet_cur = None
+    qos_time_cur = None
     match qos_type:
         case "fps":              
             startTime = int(result[-33].split("\t")[0])
@@ -333,7 +334,6 @@ def get_window():
             ans = result[i+3]
             break
     ans = ans.split("Layer ")[-1][1:-1]
-    ans = ans.replace("]", "")
     
     window = ans
     return ans

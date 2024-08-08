@@ -11,7 +11,7 @@ parser.add_argument("--experiment", type=int, default = 1,
                     help="the type of experiment")
 parser.add_argument("--temperature", type=int, default = 20,
                     help="the ouside temperature")
-parser.add_argument("--initSleep", type=int, default = 600,
+parser.add_argument("--initSleep", type=int, default = 1,
                     help="initial sleep time")
 parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")

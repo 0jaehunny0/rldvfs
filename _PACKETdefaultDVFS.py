@@ -11,13 +11,11 @@ parser.add_argument("--experiment", type=int, default = 1,
                     help="the type of experiment")
 parser.add_argument("--temperature", type=int, default = 20,
                     help="the ouside temperature")
-parser.add_argument("--initSleep", type=int, default = 10,
+parser.add_argument("--initSleep", type=int, default = 1,
                     help="initial sleep time")
 parser.add_argument("--loadModel", type=str, default = "no",
                     help="initial sleep time")
 parser.add_argument("--timeOut", type=int, default = 60*30,
-                    help="end time")
-parser.add_argument("--interval", type=int, default = 1,
                     help="end time")
 args = parser.parse_args()
 
@@ -27,7 +25,7 @@ total_timesteps = args.total_timesteps
 experiment = args.experiment
 temperature = args.temperature
 initSleep = args.initSleep
-interval = args.interval
+
 
 # adb root
 set_root()
@@ -40,9 +38,13 @@ sleep(initSleep)
 
 turn_on_screen()
 
+sleep(1)
+
 set_brightness(158)
 
 window = get_window()
+
+pid = get_pid(window)
 
 unset_frequency()
 
@@ -51,23 +53,24 @@ unset_frequency()
 
 unset_rate_limit_us()
 
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
-msg = 'adb shell "echo '+str(1000*interval)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+msg = 'adb shell "echo '+"10000000"+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
 
-msg = 'adb shell "echo '+str(1*interval)+' > /sys/class/misc/mali0/device/dvfs_period"'
+msg = 'adb shell "echo '+"10000"+' > /sys/class/misc/mali0/device/dvfs_period"'
 subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
 
-run_name = "default2"+str(args.interval)+"__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
+
+run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 writer = SummaryWriter(f"runs/{run_name}")
 
 little = []
@@ -94,6 +97,8 @@ start_time = time.time()
 t1a, t2a, littlea, mida, biga, gpua = get_energy()
 a = get_core_util()
 
+received_packeta, transmitted_packeta = get_packet(pid)
+
 for i in range(total_timesteps):
 
     if time.time() - start_time > args.timeOut:
@@ -106,7 +111,16 @@ for i in range(total_timesteps):
 
     sleep(1)
 
-    fps = get_fps(window)
+    # fps = get_fps(window)
+    # totalFrameb, jankyFrameb = get_jank(pid)
+
+    # no jank ratio (higher is better)
+    received_packetb, transmitted_packetb = get_packet(pid)
+    jank = received_packetb + transmitted_packetb - received_packeta - transmitted_packeta
+    fps = jank
+
+    # totalFramea, jankyFramea = totalFrameb, jankyFrameb
+    received_packeta, transmitted_packeta = received_packetb, transmitted_packetb 
 
     freqs = np.array(get_frequency())
 

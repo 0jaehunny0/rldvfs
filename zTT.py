@@ -148,6 +148,17 @@ if __name__ == "__main__":
     lossLi = []
     tempLi = []
 
+    l1Li = []
+    l2Li = []
+    l3Li = []
+    l4Li = []
+    m1Li = []
+    m2Li = []
+    b1Li = []
+    b2Li = []
+    guLi = []
+
+
     print("asdf")
 
     args = tyro.cli(Args)
@@ -224,6 +235,18 @@ if __name__ == "__main__":
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
+        util_li = infos["final_info"][0]["util"]
+
+        l1Li.append(util_li[0])
+        l2Li.append(util_li[1])
+        l3Li.append(util_li[2])
+        l4Li.append(util_li[3])
+        m1Li.append(util_li[4])
+        m2Li.append(util_li[5])
+        b1Li.append(util_li[6])
+        b2Li.append(util_li[7])
+        guLi.append(util_li[8])
+
 
         match qos_type:
             case "fps":

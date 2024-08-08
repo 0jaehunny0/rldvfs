@@ -21,6 +21,8 @@ while True:
         # msg = 'adb shell input touchscreen swipe '+str(a)+' '+str(b)+' '+str(c)+' '+str(d)
         # subprocess.run(msg.split(), stdout=subprocess.PIPE)
 
-    randSleep = random.random()
-    sleep(1)
+    # randSleep = random.randint(0, 100)
+    # sleep(randSleep * 20 /100)
+
+    sleep(5)
 

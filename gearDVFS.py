@@ -240,6 +240,7 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 	power = (littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)
 	power2 = get_battery_power()
 
+	qos_time_cur = None
 	byte_cur = None
 	packet_cur = None
 	match qos_type:
@@ -249,7 +250,7 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 			byte_cur = get_packet_info(window, qos_type)
 			qos_time_cur = time.time()
 			qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
-			print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+			# print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
 			byte_prev = byte_cur
 		case "packet":
 			packet_cur = get_packet_info(window, qos_type)
@@ -288,13 +289,13 @@ if __name__ == "__main__":
 						help="the type of experiment")
 	parser.add_argument("--temperature", type=int, default = 20,
 						help="the ouside temperature")
-	parser.add_argument("--initSleep", type=int, default = 600,
+	parser.add_argument("--initSleep", type=int, default = 1,
 						help="initial sleep time")
 	parser.add_argument("--loadModel", type=str, default = "no",
 						help="initial sleep time")
 	parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
-	parser.add_argument("--qos", choices=['fps', 'byte', 'packet'],
+	parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
                     help="Quality of Service")
 	args = parser.parse_args()
 
