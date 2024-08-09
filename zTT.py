@@ -210,6 +210,9 @@ if __name__ == "__main__":
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
 
+        if time.time() - start_time > args.timeOut:
+            break
+
         ts.append(global_step)
 
         # ALGO LOGIC: put action logic here
