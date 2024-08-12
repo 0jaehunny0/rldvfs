@@ -175,7 +175,7 @@ def cal_cpu_reward(cpu_utils,cpu_temps,cluster_num):
     cpu_u_max,cpu_u_min = 0.85,0.75
     cpu_u_g = 0.8
     u,v,w = -0.2,0.21,0.1
-    temp_thre = 60
+    # temp_thre = 60
     reward_value = 0.0
     cpu_t =cpu_temps[0]
     # print('cpu',end=': ')
@@ -199,7 +199,7 @@ def cal_gpu_reward(gpu_utils,gpu_temps,num):
     gpu_u_max,gpu_u_min = 0.85,0.75
     gpu_u_g = 0.8
     u,v,w = -0.05,0.051,0.1
-    temp_thre = 60
+    # temp_thre = 60
     reward_value = 0
     # print('gpu',end=': ')
     for gpu_u,gpu_t in zip(gpu_utils,gpu_temps):
@@ -297,6 +297,8 @@ if __name__ == "__main__":
                     help="end time")
 	parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
                     help="Quality of Service")
+	parser.add_argument("--targetTemp", type = int, default=60,
+                    help="target temperature")
 	args = parser.parse_args()
 
 	print(args)
@@ -306,6 +308,7 @@ if __name__ == "__main__":
 	temperature = args.temperature
 	initSleep = args.initSleep
 	qos_type = args.qos
+	temp_thre = args.targetTemp
 
 	N_S, N_A, N_B = 5, 3, 11
 

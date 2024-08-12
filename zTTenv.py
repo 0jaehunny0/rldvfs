@@ -19,6 +19,9 @@ big_available_frequencies = np.array(big_available_frequencies)[[int(np.round(17
 gpu_available_frequencies = np.array(gpu_available_frequencies)[[int(np.round(12*1/4))-1, int(np.round(12*2/4))-1, int(np.round(12*3/4))-1]]
 
 clk_action_list = []
+
+temp_thes = 65
+
 for i in range(3):
     for j in range(3):
         clk_action=(i,j)
@@ -30,12 +33,12 @@ def get_reward(fps, power, target_fps, c_t, g_t, c_t_prev, g_t_prev, beta):
 	# print('power={}'.format(power))
 	u=max(1,fps/target_fps)
 
-	if g_t<= target_temp:
+	if g_t<= temp_thes:
 		v2=0
 	else:
-		v2=2*(target_temp-g_t)
-	if c_t_prev < target_temp:
-		if c_t >= target_temp:
+		v2=2*(temp_thes-g_t)
+	if c_t_prev < temp_thes:
+		if c_t >= temp_thes:
 			v1=-2
 
 	if fps>=target_fps:
@@ -59,10 +62,14 @@ def action_to_freq(action):
 
 
 class DVFStrain(Env):
-    def __init__(self, initSleep, experiment, qos_type: str):
+    def __init__(self, initSleep, experiment, qos_type: str, targetTemp):
 
         self.exp = experiment
         self.qos_type = qos_type
+
+        global temp_thes
+
+        temp_thes = targetTemp
 
         # adb root
         set_root()

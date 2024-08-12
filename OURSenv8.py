@@ -82,7 +82,7 @@ class DVFStrain(Env):
         self.qos_type = qos_type
 
         # fps, temp(6), freq(4), power(4), cluster_util (4), cooling_state (4), prev_states (8)
-        self.observation_space = spaces.Box(low=0, high=100, shape=(29, ), dtype=np.float64)
+        self.observation_space = spaces.Box(low=0, high=100, shape=(31, ), dtype=np.float64)
         
         # max_limit[little mid big gpu] repeat [up_rate down_rate (500 - 10000)] gpu_rate (20-100)
         self.action_space = spaces.MultiDiscrete([11, 14, 17, 12, 10, 20, 20, 9])
@@ -130,7 +130,6 @@ class DVFStrain(Env):
 
         # current state 
         temps = np.array(get_temperatures())
-        temps = temps[:4]
         freqs = np.array(get_frequency())
 
         match qos_type:
@@ -187,7 +186,6 @@ class DVFStrain(Env):
         c_states = [self.state[-5], self.state[-4], self.state[-3], self.state[-2]]
         # set limit freq and 
         little_max, mid_max, big_max, gpu_max, sleepTime, up, down, gpu_rate = action_to_freq(action, c_states)
-
         up, down, gpu_rate = 5000, 5000, 50
 
         # t1a, t2a, littlea, mida, biga, gpua, a = set_frequency_and_get_energy2(little_max, mid_max, big_max, gpu_max, up, down, gpu_rate)
@@ -226,7 +224,7 @@ class DVFStrain(Env):
         mid_u = cpu_util[4:6].mean()*100
         big_u = cpu_util[6:8].mean()*100
 
-        states = np.concatenate([[qos], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps[:4], freqs/30000, action, c_states]).astype(np.float32)
+        states = np.concatenate([[qos], [little_u, mid_u, big_u], gpu_util, [little, mid, big, gpu], temps, freqs/30000, action, c_states]).astype(np.float32)
 
         self.state = states
         obs = states
