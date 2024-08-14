@@ -62,10 +62,12 @@ def action_to_freq(action):
 
 
 class DVFStrain(Env):
-    def __init__(self, initSleep, experiment, qos_type: str, targetTemp):
+    def __init__(self, initSleep, experiment, qos_type: str, targetTemp, latency):
 
         self.exp = experiment
         self.qos_type = qos_type
+        self.latency = latency
+
 
         global temp_thes
 

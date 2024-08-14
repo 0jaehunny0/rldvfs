@@ -14,7 +14,7 @@ import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 # from my_env import DogTrain
-from OURSenv5 import DVFStrain 
+from OURSenv import DVFStrain 
 from utils2 import *
 import time
 
@@ -38,7 +38,7 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "DVFStrain5"
+    env_id: str = "DVFStrain8"
     """the environment id of the task"""
     total_timesteps: int = 1001
     """total timesteps of the experiments"""
@@ -48,9 +48,9 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 64
+    batch_size: int = 100
     """the batch size of sample from the reply memory"""
-    learning_starts: int = 100
+    learning_starts: int = 1
     """timestep to start learning"""
     policy_lr: float = 1e-4
     """the learning rate of the policy network optimizer"""
@@ -73,11 +73,16 @@ class Args:
     """initial sleep time"""
     loadModel: str = "no"
     """the save path of model"""
+    timeOut: int = 30 * 60
+    """the end time"""
+    qos: str = "fps"
+    """Quality of Service"""
+
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain(args.initSleep, args.experiment)
+        env = DVFStrain(args.initSleep, args.experiment, args.qos)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         return env
@@ -156,6 +161,8 @@ if __name__ == "__main__":
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
+    qos_type = args.qos
+
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -203,7 +210,6 @@ if __name__ == "__main__":
         device,
         handle_timeout_termination=False,
     )
-    start_time = time.time()
 
     little = []
     mid = []
@@ -212,15 +218,39 @@ if __name__ == "__main__":
     ppw = []
     ts = []
     fpsLi = []
+    bytesLi = []
+    packetsLi = []
     rewardLi = []
     powerLi = []
     lossLi = []
     tempLi = []
     timeLi = []
+    upLi = []
+    downLi = []
+    gpuLi = []
+
+    l1Li = []
+    l2Li = []
+    l3Li = []
+    l4Li = []
+    m1Li = []
+    m2Li = []
+    b1Li = []
+    b2Li = []
+    guLi = []
+
+    from collections import deque
+    utilLi = np.zeros
+
+    start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
+
+        if time.time() - start_time > args.timeOut:
+            break
+
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
@@ -236,17 +266,42 @@ if __name__ == "__main__":
         big.append(infos["final_info"][0]["big"])
         gpu.append(infos["final_info"][0]["gpu"])
         ppw.append(infos["final_info"][0]["ppw"])
-        fps = infos["final_info"][0]["fps"]
+        qos = infos["final_info"][0]["qos"]
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
         times = infos["final_info"][0]["time"]
+        up_rate = infos["final_info"][0]["uptime"]
+        down_rate = infos["final_info"][0]["downtime"]
+        gpu_rate = infos["final_info"][0]["gputime"]
+        util_li = infos["final_info"][0]["util"]
 
-        fpsLi.append(fps)
+        match qos_type:
+            case "fps":
+                fpsLi.append(qos)
+            case "byte":
+                bytesLi.append(qos)
+            case "packet":
+                packetsLi.append(qos)
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
         timeLi.append(times)
+        upLi.append(up_rate)
+        downLi.append(down_rate)
+        gpuLi.append(gpu_rate)
+
+
+        l1Li.append(util_li[0])
+        l2Li.append(util_li[1])
+        l3Li.append(util_li[2])
+        l4Li.append(util_li[3])
+        m1Li.append(util_li[4])
+        m2Li.append(util_li[5])
+        b1Li.append(util_li[6])
+        b2Li.append(util_li[7])
+        guLi.append(util_li[8])
+
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -313,21 +368,52 @@ if __name__ == "__main__":
             if global_step % 10 == 0:
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
-                writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
-                writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
-                writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
-                writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
-                writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
-                writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
-                writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
-                writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
-                writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
-                writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
-                writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
-                writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
-                writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
-                writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
-                writer.add_scalar("losses/time", np.array(timeLi)[-10:].mean(), global_step)
+
+
+        if global_step % 10 == 0:
+            writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
+            writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
+            writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)
+            writer.add_scalar("freq/gpu", np.array(gpu)[-10:].mean(), global_step)
+            writer.add_scalar("perf/ppw", np.array(ppw)[-10:].mean(), global_step)
+            writer.add_scalar("perf/reward", np.array(rewardLi)[-10:].mean(), global_step)
+            writer.add_scalar("perf/power", np.array(powerLi)[-10:].mean()*100, global_step)
+            match qos_type:
+                case "fps":
+                    writer.add_scalar("perf/fps", np.array(fpsLi)[-10:].mean(), global_step)
+                case "byte":
+                    writer.add_scalar("perf/bytes", np.array(bytesLi)[-10:].mean(), global_step)
+                case "packet":
+                    writer.add_scalar("perf/packets", np.array(packetsLi)[-10:].mean(), global_step)
+            writer.add_scalar("temp/little", np.array(tempLi)[-10:, 0].mean(), global_step)
+            writer.add_scalar("temp/mid", np.array(tempLi)[-10:, 1].mean(), global_step)
+            writer.add_scalar("temp/big", np.array(tempLi)[-10:, 2].mean(), global_step)
+            writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
+            writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
+            writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
+            writer.add_scalar("losses/time", np.array(timeLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/up", np.array(upLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/down", np.array(downLi)[-10:].mean(), global_step)
+            writer.add_scalar("losses/gpu_time", np.array(gpuLi)[-10:].mean(), global_step)
+            
+            little_c, mid_c, big_c, gpu_c = get_cooling_state()
+            writer.add_scalar("cstate/little", little_c, global_step)
+            writer.add_scalar("cstate/mid", mid_c, global_step)
+            writer.add_scalar("cstate/big", big_c, global_step)
+            writer.add_scalar("cstate/gpu", gpu_c, global_step)
+
+            writer.add_scalar("util/l1", np.array(l1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l2", np.array(l2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l3", np.array(l3Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/l4", np.array(l4Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m1", np.array(m1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/m2", np.array(m2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b1", np.array(b1Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/b2", np.array(b2Li)[-10:].mean(), global_step)
+            writer.add_scalar("util/gu", np.array(guLi)[-10:].mean(), global_step)
+            writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, global_step)
+            writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, global_step)
+            writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, global_step)
 
 
     turn_on_usb_charging()

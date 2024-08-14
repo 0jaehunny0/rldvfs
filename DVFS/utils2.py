@@ -199,7 +199,6 @@ def get_states2(window, qos_type: str, qos_time_prev: float, byte_prev: Optional
     msg += '&& dumpsys SurfaceFlinger --latency ' + '\'' + window + '\''
     msg += '"'
 
-
     result = subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
     result = result.decode('utf-8')
 

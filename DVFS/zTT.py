@@ -85,13 +85,15 @@ class Args:
     """the end time"""
     qos: str = "fps"
     """Quality of Service type"""
-    targetTemp: int = 650
+    targetTemp: int = 65
     """target temperature"""
+    latency: int = 0
+    """additional latency for adb communication"""
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain(args.initSleep, args.experiment, args.qos, args.targetTemp)
+        env = DVFStrain(args.initSleep, args.experiment, args.qos, args.targetTemp, args.latency)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
@@ -127,7 +129,6 @@ if __name__ == "__main__":
     epsilon = 1
     epsilon_decay = 0.08
 
-    
 
     little = []
     mid = []

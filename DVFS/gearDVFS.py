@@ -299,6 +299,8 @@ if __name__ == "__main__":
                     help="Quality of Service")
 	parser.add_argument("--targetTemp", type = int, default=60,
                     help="target temperature")
+	parser.add_argument("--latency", type = int, default=0,
+					help="additional latency for adb communication")
 	args = parser.parse_args()
 
 	print(args)
@@ -309,6 +311,7 @@ if __name__ == "__main__":
 	initSleep = args.initSleep
 	qos_type = args.qos
 	temp_thre = args.targetTemp
+	latency = args.latency
 
 	N_S, N_A, N_B = 5, 3, 11
 
