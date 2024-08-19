@@ -3,6 +3,8 @@ import numpy as np
 
 from time import sleep
 import random
+import time
+from typing import Optional
 
 target_fps=30
 target_temp=65
@@ -28,37 +30,82 @@ mid_max_freq = 2253000
 big_max_freq = 2802000 
 gpu_max_freq = 848000
 
-def wait_temp(temp):
-    msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
-    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
-    result = result.stdout.decode('utf-8')
+def get_states2(window, qos_type: str, qos_time_prev: float, byte_prev: Optional[int], packet_prev: Optional[int]):
+    """ temps """
+    msg = 'adb shell "'
+    msg += ' cat /dev/thermal/tz-by-name/BIG/temp /dev/thermal/tz-by-name/MID/temp /dev/thermal/tz-by-name/LITTLE/temp /dev/thermal/tz-by-name/G3D/temp /dev/thermal/tz-by-name/qi_therm/temp /dev/thermal/tz-by-name/battery/temp'
+    msg += ' && cat /dev/thermal/cdev-by-name/thermal-cpufreq-0/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-1/cur_state /dev/thermal/cdev-by-name/thermal-cpufreq-2/cur_state /dev/thermal/cdev-by-name/thermal-gpufreq-0/cur_state'
+    msg += ' && cat /sys/bus/iio/devices/iio:device0/energy_value'
+    msg += ' && cat /sys/bus/iio/devices/iio:device1/energy_value'
+    msg += '&& cat /proc/stat'
+    msg += '&& cat /sys/devices/platform/1c500000.mali/utilization'
+    msg += '&& cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq /sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq /sys/devices/system/cpu/cpufreq/policy6/scaling_cur_freq /sys/class/misc/mali0/device/cur_freq'
+    msg += '&& dumpsys SurfaceFlinger --latency ' + '\'' + window + '\''
+    msg += '"'
+
+    result = subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    result = result.decode('utf-8')
+
     result = result.split("\n")
-    battery = int(result[0])/1000
+    big_temp = int(result[0])
+    mid_temp = int(result[1])
+    little_temp = int(result[2])
+    gpu_temp = int(result[3])
+    qi_temp = int(result[4])
+    battery_temp = int(result[5])
 
-    if battery > temp + 0.5:
-        turn_off_screen()
-    elif battery < temp - 0.5:
-        turn_on_screen()
-        set_brightness(158)
-    else:
-        return
+    little_cdev = int(result[6])
+    mid_cdev = int(result[7])
+    big_cdev = int(result[8])
+    gpu_cdev = int(result[9])
 
-    while True:
-        sleep(1)    
-        msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
-        result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
-        result = result.stdout.decode('utf-8')
-        result = result.split("\n")
-        battery = int(result[0])/1000
+    t1 = int(result[10][2:])
+    big_e = int(result[14].split()[1])
+    mid_e = int(result[15].split()[1])
+    little_e = int(result[16].split()[1])
 
-        if battery > temp + 0.5:
-            turn_off_screen()
-        elif battery < temp - 0.5:
-            turn_on_screen()
-            set_brightness(158)
+    t2 = int(result[19][2:])
+    gpu_e = int(result[26].split()[1])
 
-        if battery < temp + 0.5 and battery > temp - 0.5:
-            break
+    li = []
+    for i in result[29:37]:
+        temp = np.array(i.split()[1:], dtype=np.int32)
+        li.append([temp[0:7].sum(), temp[3]])
+
+    gpu_util = [int(result[44])/100]
+
+    little = int(result[45])
+    mid = int(result[46])
+    big = int(result[47])
+    gpu = int(result[48])
+
+    freqs = np.array([little, mid, big, gpu])
+
+    byte_cur = None
+    packet_cur = None
+    qos_time_cur = None
+    match qos_type:
+        case "fps":              
+            startTime = int(result[-33].split("\t")[0])
+            lastTime = int(result[-3].split("\t")[-1])  
+            twentyFrameTime = (lastTime - startTime) / 1000000000
+            qos = 30 / twentyFrameTime
+        case "byte":
+            byte_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((byte_prev, byte_cur), (qos_time_prev, qos_time_cur))
+            print(byte_cur[1] - byte_prev[1], byte_cur[0] - byte_prev[0], qos_time_cur - qos_time_prev, qos)
+        case "packet":
+            packet_cur = get_packet_info(window, qos_type)
+            qos_time_cur = time.time()
+            qos = cal_packet((packet_prev, packet_cur), (qos_time_prev, qos_time_cur))
+
+    c_states = [little_cdev, mid_cdev, big_cdev, gpu_cdev]
+
+    temps = [little_temp/1000, mid_temp/1000, big_temp/1000, gpu_temp/1000, qi_temp/1000, battery_temp/1000]
+
+
+    return c_states, temps, qos, t1, t2, little_e, mid_e, big_e, gpu_e, np.array(li), gpu_util, freqs, qos_time_cur, byte_cur, packet_cur
 
 def get_core_util():
 	msg = 'adb shell cat /proc/stat'
@@ -438,3 +485,86 @@ def get_loadavg():
 
     return result
 
+def set_rate_limit_us2(up, down, dvfs_period): # us / ms
+    msg = 'adb shell "echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+    msg = 'adb shell "echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+    msg = 'adb shell "echo '+str(dvfs_period)+' > /sys/class/misc/mali0/device/dvfs_period"'
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
+
+
+def set_frequency_and_no_get_energy(little_max, mid_max, big_max, gpu_max, up, down, gpu_rate):
+
+    msg = 'adb shell "echo '+str(big_max)+' > /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq'    
+    msg += ' && echo '+str(little_max)+' > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq'
+    msg += ' && echo '+str(mid_max)+' > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq'
+    msg += ' && echo '+str(gpu_max)+' > /sys/class/misc/mali0/device/scaling_max_freq'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(up)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/up_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy0/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy4/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(down)+' > /sys/devices/system/cpu/cpufreq/policy6/sched_pixel/down_rate_limit_us'
+    msg += ' && echo '+str(gpu_rate)+' > /sys/class/misc/mali0/device/dvfs_period'
+	
+    msg += '"'
+
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+
+def wait_temp(temp):
+
+    set_root()
+    unset_rate_limit_us()
+    turn_off_screen()
+    unset_frequency()
+    turn_on_usb_charging()
+
+    msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
+    result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+    result = result.stdout.decode('utf-8')
+    result = result.split("\n")
+    battery = int(result[0])/1000
+
+    print("temp set :" + str(temp), end=" ")
+
+    if temp < 0:
+        print("no temp set") 
+        return 0
+
+    if battery > temp + 0.5:
+        turn_off_screen()
+    elif battery < temp - 0.5:
+        turn_on_screen()
+        set_brightness(158)
+    else:
+        return
+
+    while True:
+        sleep(1)    
+        msg = 'adb shell cat /dev/thermal/tz-by-name/battery/temp'
+        result = subprocess.run(msg.split(), stdout=subprocess.PIPE)
+        result = result.stdout.decode('utf-8')
+        result = result.split("\n")
+        battery = int(result[0])/1000
+
+        if battery > temp + 0.5:
+            turn_off_screen()
+        elif battery < temp - 0.5:
+            turn_on_screen()
+            set_brightness(158)
+
+        if battery < temp + 0.5 and battery > temp - 0.5:
+            break
+
+    print("[completed] temp set :", temp)

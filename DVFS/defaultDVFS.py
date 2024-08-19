@@ -19,6 +19,8 @@ parser.add_argument("--timeOut", type=int, default = 60*30,
                     help="end time")
 parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
                     help="Quality of Service")
+parser.add_argument("--tempSet", type = float, default=-1.0,
+					help="initial temperature")
 args = parser.parse_args()
 
 print(args)
@@ -42,17 +44,22 @@ turn_on_screen()
 
 set_brightness(158)
 
+unset_frequency()
+unset_rate_limit_us()
+
 window = get_window()
 
-unset_frequency()
 
 # turn_off_usb_charging()
 
 
-unset_rate_limit_us()
 
-run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
-writer = SummaryWriter(f"runs/{run_name}")
+wait_temp(args.tempSet - 1)
+wait_temp(args.tempSet + 0.5)
+
+turn_on_screen()
+run_name = f"{int(time.time())}__default__{args.tempSet}__exp{args.experiment}__temp{args.temperature}"
+# run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 
 little = []
 mid = []
@@ -74,6 +81,8 @@ m2Li = []
 b1Li = []
 b2Li = []
 guLi = []
+
+writer = SummaryWriter(f"runs/{run_name}")
 
 start_time = time.time()
 
@@ -102,8 +111,8 @@ for i in range(total_timesteps):
     sleep(1)
 
     match qos_type:
-        case "fps":
-            qos = get_fps(window)
+        # case "fps":
+        #     qos = get_fps(window)
         case "byte":
             byte_cur = get_packet_info(window, qos_type)
             qos_time_cur = time.time()
@@ -118,14 +127,15 @@ for i in range(total_timesteps):
             packet_prev = packet_cur
             qos_time_prev = qos_time_cur
             
+    _, temps, qos, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs, _, _, _ = get_states2(window, "fps", None, None, None)
 
-    freqs = np.array(get_frequency())
+    # freqs = np.array(get_frequency())
 
     # energy after
-    t1b, t2b, littleb, midb, bigb, gpub = get_energy()
-    b = get_core_util()
+    # t1b, t2b, littleb, midb, bigb, gpub = get_energy()
+    # b = get_core_util()
 
-    gpu_util = get_gpu_util()
+    # gpu_util = get_gpu_util()
     cpu_util = list(cal_core_util(b,a))
 
     util_li = np.concatenate([cpu_util, gpu_util])
@@ -207,9 +217,6 @@ for i in range(total_timesteps):
         writer.add_scalar("util/little", (np.array(l1Li[-10:]).mean()+np.array(l2Li[-10:]).mean()+np.array(l3Li[-10:]).mean()+np.array(l4Li[-10:]).mean()) / 4, i)
         writer.add_scalar("util/mid", (np.array(m1Li[-10:]).mean()+np.array(m2Li[-10:]).mean()) / 2, i)
         writer.add_scalar("util/big", (np.array(b1Li[-10:]).mean()+np.array(b2Li[-10:]).mean()) / 2, i)
-
-
-
 
 turn_on_usb_charging()
 unset_rate_limit_us()

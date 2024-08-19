@@ -4,6 +4,7 @@ import random
 import time
 from dataclasses import dataclass
 
+from collections import deque
 import gymnasium as gym
 import numpy as np
 import torch
@@ -15,7 +16,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 # from my_env import DogTrain
 from OURSenv import DVFStrain 
-from utils2 import *
+from utils import *
 import time
 
 @dataclass
@@ -77,6 +78,8 @@ class Args:
     """the end time"""
     qos: str = "fps"
     """Quality of Service"""
+    tempSet: float = -1.0
+    """initial temperature"""
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -153,13 +156,15 @@ class Actor(nn.Module):
 
 if __name__ == "__main__":
 
+
     args = tyro.cli(Args)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+    # run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
+    run_name = f"{int(time.time())}__{args.env_id}__{args.seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}"
+
+    wait_temp(args.tempSet - 1)
+    wait_temp(args.tempSet + 0.5)
+
+
 
     qos_type = args.qos
 
@@ -239,7 +244,13 @@ if __name__ == "__main__":
     b2Li = []
     guLi = []
 
-    from collections import deque
+    writer = SummaryWriter(f"runs/{run_name}")
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    )
+
+
     utilLi = np.zeros
 
     start_time = time.time()
@@ -365,12 +376,12 @@ if __name__ == "__main__":
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
-            if global_step % 10 == 0:
+            if global_step % 10 == 0 and global_step != 0:
                 writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
                 writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
 
 
-        if global_step % 10 == 0:
+        if global_step % 10 == 0 and global_step != 0:
             writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
             writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
             writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)

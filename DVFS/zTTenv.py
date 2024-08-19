@@ -62,16 +62,17 @@ def action_to_freq(action):
 
 
 class DVFStrain(Env):
-    def __init__(self, initSleep, experiment, qos_type: str, targetTemp, latency):
+    def __init__(self, initSleep, experiment, qos_type: str, targetTemp, latency, interval):
 
         self.exp = experiment
         self.qos_type = qos_type
-        self.latency = latency
+        self.latency = latency/1000
+        self.interval  = interval
 
 
         global temp_thes
 
-        temp_thes = targetTemp
+        temp_thes = targetTemp 
 
         # adb root
         set_root()
@@ -105,6 +106,8 @@ class DVFStrain(Env):
 
         # set dvfs
         little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(8)
+
+        sleep(interval)
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
         self.qos_time_prev = time.time()
         self.byte_prev = None
@@ -116,7 +119,7 @@ class DVFStrain(Env):
                 self.packet_prev = get_packet_info(self.window, qos_type)
         
         # # wait 1s
-        sleep(1)
+        sleep(self.interval)
 
         match qos_type:
             case "fps":
@@ -164,6 +167,7 @@ class DVFStrain(Env):
      
     def step(self, action):
 
+        sleep(self.latency)
         # set dvfs
         little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(action)
         set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
@@ -175,12 +179,15 @@ class DVFStrain(Env):
         # a = get_core_util()
         a = self.last_util
 
+
         # # wait 1s
-        sleep(1)
+        sleep(self.interval)
+        sleep(self.latency)
+        
+
+        _, temps, qos, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs, _, _, _ = get_states2(self.window, "fps", None, None, None)
 
         match self.qos_type:
-            case "fps":
-                qos = get_fps(self.window)
             case "byte":
                 byte_cur = get_packet_info(self.window, self.qos_type)
                 qos_time_cur = time.time()
@@ -196,10 +203,10 @@ class DVFStrain(Env):
                 self.qos_time_prev = qos_time_cur
 
         # energy after
-        t1b, t2b, littleb, midb, bigb, gpub = get_energy()
-        b = get_core_util()
+        # t1b, t2b, littleb, midb, bigb, gpub = get_energy()
+        # b = get_core_util()
         cpu_util = np.array(list(cal_core_util(b,a)))
-        gpu_util = get_gpu_util()
+        # gpu_util = get_gpu_util()
 
         util_li = np.concatenate([cpu_util, gpu_util])
 
@@ -210,7 +217,7 @@ class DVFStrain(Env):
         gpu = (gpub - gpua)/(t2b-t2a)
 
 
-        l_t, m_t, b_t, g_t, qi_t, batt_t  = get_temperatures()
+        l_t, m_t, b_t, g_t, qi_t, batt_t  = temps
 
         cpu_t = (l_t + m_t + b_t) / 3
 

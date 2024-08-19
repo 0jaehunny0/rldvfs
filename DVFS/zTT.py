@@ -89,11 +89,15 @@ class Args:
     """target temperature"""
     latency: int = 0
     """additional latency for adb communication"""
+    interval: float = 1.0
+    """interval between DVFSs"""
+    tempSet: float = -1.0
+    """initial temperature"""
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
 
-        env = DVFStrain(args.initSleep, args.experiment, args.qos, args.targetTemp, args.latency)
+        env = DVFStrain(args.initSleep, args.experiment, args.qos, args.targetTemp, args.latency, args.interval)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
@@ -162,19 +166,15 @@ if __name__ == "__main__":
     guLi = []
 
 
-    print("asdf")
-
     args = tyro.cli(Args)
     assert args.num_envs == 1, "vectorized envs are not supported at the moment"
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
+    run_name = f"{int(time.time())}__{args.env_id}__{args.seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__target{args.targetTemp}"
 
     qos_type = args.qos
 
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+
+    wait_temp(args.tempSet - 1)
+    wait_temp(args.tempSet + 0.5)
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -209,6 +209,14 @@ if __name__ == "__main__":
         device,
         handle_timeout_termination=False,
     )
+
+    writer = SummaryWriter(f"runs/{run_name}")
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    )
+
+
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
@@ -325,7 +333,7 @@ if __name__ == "__main__":
             loss = F.mse_loss(td_target, old_val)
             # target_max = max(target_max)
         
-        if global_step % 10 == 0:
+        if global_step % 10 == 0 and global_step != 0:
             writer.add_scalar("freq/little", np.array(little)[-10:].mean(), global_step)
             writer.add_scalar("freq/mid", np.array(mid)[-10:].mean(), global_step)
             writer.add_scalar("freq/big", np.array(big)[-10:].mean(), global_step)

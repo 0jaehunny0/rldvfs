@@ -220,11 +220,17 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 
 	t1a, t2a, littlea, mida, biga, gpua = aa
 
-	cpu_util = get_cpu_util()
-	gpu_util = get_gpu_util()
+	_, temps, qos, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs, _, _, _ = get_states2(window, "fps", None, None, None)
+	little_f, mid_f, big_f, gpu_f = freqs
+	little_t, mid_t, big_t, gpu_t, qi_t, batt_t = temps
 
-	little_f, mid_f, big_f, gpu_f = get_frequency()
-	little_t, mid_t, big_t, gpu_t, qi_t, batt_t = get_temperatures()
+	bb = (t1b, t2b, littleb, midb, bigb, gpub)
+
+	# cpu_util = get_cpu_util()
+	# gpu_util = get_gpu_util()
+
+	# little_f, mid_f, big_f, gpu_f = get_frequency()
+	# little_t, mid_t, big_t, gpu_t, qi_t, batt_t = get_temperatures()
 
 	gpu_freq = [gpu_f]
 	cpu_freq = [little_f, mid_f, big_f]
@@ -232,20 +238,22 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 	cpu_thremal = np.array([(little_t + mid_t + big_t) / 3])
 	
 
-	b = get_core_util()
-	t1b, t2b, littleb, midb, bigb, gpub = get_energy()
+	# b = get_core_util()
+	# t1b, t2b, littleb, midb, bigb, gpub = get_energy()
 
 	cpu_util = list(cal_core_util(b,a))
 
 	power = (littleb + midb + bigb - littlea - mida - biga)/(t1b-t1a) + (gpub-gpua)/(t2b-t2a)
-	power2 = get_battery_power()
+	# power2 = get_battery_power()
+
+	fps = qos
 
 	qos_time_cur = None
 	byte_cur = None
 	packet_cur = None
 	match qos_type:
-		case "fps":
-			qos = get_fps(window)
+		# case "fps":
+		# 	qos = get_fps(window)
 		case "byte":
 			byte_cur = get_packet_info(window, qos_type)
 			qos_time_cur = time.time()
@@ -262,12 +270,12 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 
 
 	# 16个数据
-	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,power2]).astype(np.float32)
+	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,[power]]).astype(np.float32)
 
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
 	# print()
-	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], qos, util_li, qos_time_cur, byte_cur, packet_cur
+	return states,reward, power, [little_t, mid_t, big_t, gpu_t, qi_t, batt_t], qos, util_li, qos_time_cur, byte_cur, packet_cur, b, bb
 
 def action_to_freq(action):
 
@@ -300,7 +308,11 @@ if __name__ == "__main__":
 	parser.add_argument("--targetTemp", type = int, default=60,
                     help="target temperature")
 	parser.add_argument("--latency", type = int, default=0,
-					help="additional latency for adb communication")
+					help="additional latency for adb communication (ms)")
+	parser.add_argument("--interval", type = float, default=0.2,
+					help="interval between DVFSs (s)")
+	parser.add_argument("--tempSet", type = float, default=-1.0,
+					help="initial temperature")
 	args = parser.parse_args()
 
 	print(args)
@@ -311,7 +323,8 @@ if __name__ == "__main__":
 	initSleep = args.initSleep
 	qos_type = args.qos
 	temp_thre = args.targetTemp
-	latency = args.latency
+	latency = args.latency/1000
+	interval = args.interval
 
 	N_S, N_A, N_B = 5, 3, 11
 
@@ -327,11 +340,16 @@ if __name__ == "__main__":
 	agent = DQN_AGENT_AB(N_S,8,[11,14,17,12],N_BUFFER,None)
 	prev_state, prev_action = [None]*2
 	record_count, test_count, n_round, g_step = [0]*4
+	seed = 1
+
+	random.seed(seed)
+	np.random.seed(seed)
+	torch.manual_seed(seed)
 
 	global_count = 0
 
-	run_name = "gearDVFS__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
-	writer = SummaryWriter(f"runs/{run_name}")
+	run_name = f"{int(time.time())}__gearDVFS__{seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__target{args.targetTemp}"
+	# run_name = "gearDVFS__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 
 	if len(args.loadModel) > 2:
 		agent.policy_net.load_state_dict(torch.load("save/"+args.loadModel+"_policy_net.pt"))
@@ -361,6 +379,9 @@ if __name__ == "__main__":
 	b1Li = []
 	b2Li = []
 	guLi = []
+
+	wait_temp(args.tempSet - 1)
+	wait_temp(args.tempSet + 0.5)
 
 	# adb root
 	set_root()
@@ -394,7 +415,9 @@ if __name__ == "__main__":
 			byte_prev = get_packet_info(window, qos_type)
 		case "packet":
 			packet_prev = get_packet_info(window, qos_type)
-	sleep(0.2)
+	sleep(interval)
+
+	writer = SummaryWriter(f"runs/{run_name}")
 
 	start_time = time.time()
 
@@ -403,26 +426,29 @@ if __name__ == "__main__":
 		if time.time() - start_time > args.timeOut:
 			break
 
-		state, reward, power1, temps, qos, util_li, qos_time_cur, byte_cur, packet_cur = get_ob_phone(a, aa, qos_type, qos_time_prev, byte_prev, packet_prev)
+		state, reward, power1, temps, qos, util_li, qos_time_cur, byte_cur, packet_cur, a, aa = get_ob_phone(a, aa, qos_type, qos_time_prev, byte_prev, packet_prev)
 		agent.eps = EPS_END + (EPS_START - EPS_END) * \
                 math.exp(-1. * g_step / EPS_DECAY)
 		action = agent.select_action(torch.from_numpy(state).unsqueeze(0))
 		if record_count!=0:
 			agent.mem.push(prev_state, prev_action, state, reward)
 		prev_state, prev_action = state, action
-			
+
+
+		sleep(latency)
 		# set dvfs
 		little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(action)
 		set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
-		a = get_core_util()
-		aa = get_energy()
+		# a = get_core_util()
+		# aa = get_energy()
 
 		qos_time_prev = qos_time_cur
 		byte_prev = byte_cur
 		packet_prev = packet_cur
 
-		sleep(0.2)
+		sleep(interval)
+		sleep(latency)
 
 		record_count+=1
 		global_count += 1
