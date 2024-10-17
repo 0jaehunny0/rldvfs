@@ -15,7 +15,7 @@ import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 # from my_env import DogTrain
-from OURSenv import DVFStrain 
+from OURSenv4 import DVFStrain 
 from utils import *
 import time
 
@@ -39,7 +39,7 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "DVFStrain8"
+    env_id: str = "DVFStrain11"
     """the environment id of the task"""
     total_timesteps: int = 1001
     """total timesteps of the experiments"""
@@ -55,7 +55,7 @@ class Args:
     """timestep to start learning"""
     policy_lr: float = 1e-4
     """the learning rate of the policy network optimizer"""
-    q_lr: float = 5e-5
+    q_lr: float = 1e-4
     """the learning rate of the Q network network optimizer"""
     policy_frequency: int = 2
     """the frequency of training policy (delayed)"""
@@ -229,10 +229,6 @@ if __name__ == "__main__":
     powerLi = []
     lossLi = []
     tempLi = []
-    timeLi = []
-    upLi = []
-    downLi = []
-    gpuLi = []
 
     l1Li = []
     l2Li = []
@@ -248,6 +244,11 @@ if __name__ == "__main__":
     mid_c = []
     big_c = []
     gpu_c = []
+
+    littleReal = []
+    midReal = []
+    bigReal = []
+    gpuReal = []
 
 
 
@@ -288,10 +289,6 @@ if __name__ == "__main__":
         power = infos["final_info"][0]["power"]
         reward = infos["final_info"][0]["reward"]
         temps = infos["final_info"][0]["temp"]
-        times = infos["final_info"][0]["time"]
-        up_rate = infos["final_info"][0]["uptime"]
-        down_rate = infos["final_info"][0]["downtime"]
-        gpu_rate = infos["final_info"][0]["gputime"]
         util_li = infos["final_info"][0]["util"]
 
         little_c.append(infos["final_info"][0]["little_c"])
@@ -299,6 +296,11 @@ if __name__ == "__main__":
         big_c.append(infos["final_info"][0]["big_c"])
         gpu_c.append(infos["final_info"][0]["gpu_c"])
 
+
+        littleReal.append(infos["final_info"][0]["littleReal"])
+        midReal.append(infos["final_info"][0]["midReal"])
+        bigReal.append(infos["final_info"][0]["bigReal"])
+        gpuReal.append(infos["final_info"][0]["gpuReal"])
 
         match qos_type:
             case "fps":
@@ -310,10 +312,7 @@ if __name__ == "__main__":
         powerLi.append(power)
         rewardLi.append(reward)
         tempLi.append(temps)
-        timeLi.append(times)
-        upLi.append(up_rate)
-        downLi.append(down_rate)
-        gpuLi.append(gpu_rate)
+
 
 
         l1Li.append(util_li[0])
@@ -415,11 +414,13 @@ if __name__ == "__main__":
             writer.add_scalar("temp/gpu", np.array(tempLi)[-10:, 3].mean(), global_step)
             writer.add_scalar("temp/qi", np.array(tempLi)[-10:, 4].mean(), global_step)
             writer.add_scalar("temp/battery", np.array(tempLi)[-10:, 5].mean(), global_step)
-            writer.add_scalar("losses/time", np.array(timeLi)[-10:].mean(), global_step)
-            writer.add_scalar("losses/up", np.array(upLi)[-10:].mean(), global_step)
-            writer.add_scalar("losses/down", np.array(downLi)[-10:].mean(), global_step)
-            writer.add_scalar("losses/gpu_time", np.array(gpuLi)[-10:].mean(), global_step)
             
+            writer.add_scalar("real/little", np.array(littleReal)[-10:].mean(), global_step)
+            writer.add_scalar("real/mid", np.array(midReal)[-10:].mean(), global_step)
+            writer.add_scalar("real/big", np.array(bigReal)[-10:].mean(), global_step)
+            writer.add_scalar("real/gpu", np.array(gpuReal)[-10:].mean(), global_step)
+
+
             writer.add_scalar("cstate/little", np.array(little_c)[-10:].mean(), global_step)
             writer.add_scalar("cstate/mid", np.array(mid_c)[-10:].mean(), global_step)
             writer.add_scalar("cstate/big", np.array(big_c)[-10:].mean(), global_step)

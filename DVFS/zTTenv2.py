@@ -91,7 +91,7 @@ class DVFStrain(Env):
         gpu temp
         fps
         """
-        self.observation_space = spaces.Box(low=0, high=100, shape=(7, ), dtype=np.float64)        
+        self.observation_space = spaces.Box(low=0, high=100, shape=(11, ), dtype=np.float64)        
 
         self.action_space = spaces.Discrete(9)
         
@@ -151,7 +151,9 @@ class DVFStrain(Env):
 
         cpu_t = (l_t + m_t + b_t)/3
 
-        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos])
+
+        little_f, mid_f, big_f, gpu_f = get_frequency()
+        self.state = np.array([3, 3, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos, little_f, mid_f, big_f, gpu_f])
         
         self.c_t_prev = cpu_t
         self.g_t_prev = g_t
@@ -239,7 +241,7 @@ class DVFStrain(Env):
         cpu_index = clk_action_list[action][0]
         gpu_index = clk_action_list[action][1]
 
-        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos])
+        obs = np.array([cpu_index, gpu_index, (little + mid + big)/100, gpu/100, cpu_t, g_t, qos, littleReal, midReal, bigReal, gpuReal])
 
         self.collected_reward += reward
 

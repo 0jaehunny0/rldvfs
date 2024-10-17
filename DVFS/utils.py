@@ -503,6 +503,21 @@ def set_rate_limit_us2(up, down, dvfs_period): # us / ms
     subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()     
 
 
+def set_frequency_and_no_get_energy_no_rate(little_max, mid_max, big_max, gpu_max):
+
+    msg = 'adb shell "echo '+str(big_max)+' > /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq'    
+    msg += ' && echo '+str(little_max)+' > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq'
+    msg += ' && echo '+str(mid_max)+' > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq'
+    msg += ' && echo '+str(gpu_max)+' > /sys/class/misc/mali0/device/scaling_max_freq'
+    msg += ' && echo '+str(big_max)+' > /sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq'
+    msg += ' && echo '+str(little_max)+' > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq'
+    msg += ' && echo '+str(mid_max)+' > /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq'
+    msg += ' && echo '+str(gpu_max)+' > /sys/class/misc/mali0/device/scaling_min_freq'	
+    msg += '"'
+
+    subprocess.Popen(msg, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+
 def set_frequency_and_no_get_energy(little_max, mid_max, big_max, gpu_max, up, down, gpu_rate):
 
     msg = 'adb shell "echo '+str(big_max)+' > /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq'    

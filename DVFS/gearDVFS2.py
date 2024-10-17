@@ -170,11 +170,10 @@ class DQN_AGENT_AB():
 
 
 def cal_cpu_reward(cpu_utils,cpu_temps,cluster_num):
-    global targetUtil
     lambda_value = 0.15
     # for cpu
-    cpu_u_max,cpu_u_min = 0.85+targetUtil,0.75+targetUtil
-    cpu_u_g = 0.8+targetUtil
+    cpu_u_max,cpu_u_min = 0.85,0.75
+    cpu_u_g = 0.8
     u,v,w = -0.2,0.21,0.1
     # temp_thre = 60
     reward_value = 0.0
@@ -195,11 +194,10 @@ def cal_cpu_reward(cpu_utils,cpu_temps,cluster_num):
     return reward_value/cluster_num
   
 def cal_gpu_reward(gpu_utils,gpu_temps,num):
-    global targetUtil
     lambda_value = 0.1
     # for cpu
-    gpu_u_max,gpu_u_min = 0.85+targetUtil,0.75+targetUtil
-    gpu_u_g = 0.8+targetUtil
+    gpu_u_max,gpu_u_min = 0.85,0.75
+    gpu_u_g = 0.8
     u,v,w = -0.05,0.051,0.1
     # temp_thre = 60
     reward_value = 0
@@ -217,10 +215,9 @@ def cal_gpu_reward(gpu_utils,gpu_temps,num):
         # print(f"{d}",end=',')
     return reward_value/num 
 
-def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional[int], packet_prev: Optional[int]):
+def get_ob_phone(actions, a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional[int], packet_prev: Optional[int]):
     # State Extraction and Reward Calculation
 
-	global targetUtil
 	t1a, t2a, littlea, mida, biga, gpua = aa
 
 	c_states, temps, qos, t1b, t2b, littleb, midb, bigb, gpub, b, gpu_util, freqs, _, _, _ = get_states2(window, "fps", None, None, None)
@@ -274,7 +271,7 @@ def get_ob_phone(a, aa, qos_type: str, qos_time_prev: float, byte_prev: Optional
 
 
 	# 16个数据
-	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,cpu_freq,[power]]).astype(np.float32)
+	states = np.concatenate([gpu_util,cpu_util,gpu_freq,cpu_freq,gpu_thremal,actions,[power]]).astype(np.float32)
 
 	reward = cal_cpu_reward(cpu_util,cpu_thremal,8)
 	reward += cal_gpu_reward(gpu_util,gpu_thremal,1)
@@ -317,8 +314,6 @@ if __name__ == "__main__":
 					help="interval between DVFSs (s)")
 	parser.add_argument("--tempSet", type = float, default=-1.0,
 					help="initial temperature")
-	parser.add_argument("--targetUtil", type = float, default=0.0,
-                    help="target utilization")
 	args = parser.parse_args()
 
 	print(args)
@@ -332,8 +327,6 @@ if __name__ == "__main__":
 	latency = args.latency/1000
 	interval = args.interval
 
-	targetUtil = args.targetUtil
-
 	N_S, N_A, N_B = 5, 3, 11
 
 	# Test/Train Demo for DQN_AB
@@ -344,7 +337,7 @@ if __name__ == "__main__":
 	EPS_DECAY = 1000
 	n_update, n_batch = 5,4
 	SYNC_STEP = 30
-	N_S,  N_BUFFER = 18, 36000
+	N_S,  N_BUFFER = 19, 36000
 	agent = DQN_AGENT_AB(N_S,8,[11,14,17,12],N_BUFFER,None)
 	prev_state, prev_action = [None]*2
 	record_count, test_count, n_round, g_step = [0]*4
@@ -356,7 +349,7 @@ if __name__ == "__main__":
 
 	global_count = 0
 
-	run_name = f"{int(time.time())}__gearDVFS__{seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__target{args.targetTemp}__targetUtil{args.targetUtil}"
+	run_name = f"{int(time.time())}__gearDVFS2__{seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__target{args.targetTemp}"
 	# run_name = "gearDVFS__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 
 	if len(args.loadModel) > 2:
@@ -420,7 +413,7 @@ if __name__ == "__main__":
 
 	unset_frequency()
 
-	# unset_rate_limit_us()
+
 	set_rate_limit_us(1000000000, 20)
 
 	a = get_core_util()
@@ -441,12 +434,14 @@ if __name__ == "__main__":
 
 	little_past, mid_past, big_past, gpu_past = -1, -1, -1, -1
 
+	actions = get_frequency()
+
 	while True:
 
 		if time.time() - start_time > args.timeOut:
 			break
 
-		c_states, state, reward, power1, temps, qos, util_li, qos_time_cur, byte_cur, packet_cur, a, aa = get_ob_phone(a, aa, qos_type, qos_time_prev, byte_prev, packet_prev)
+		c_states, state, reward, power1, temps, qos, util_li, qos_time_cur, byte_cur, packet_cur, a, aa = get_ob_phone(actions, a, aa, qos_type, qos_time_prev, byte_prev, packet_prev)
 
 		little_c1, mid_c1, big_c1, gpu_c1 = c_states
 
@@ -463,6 +458,7 @@ if __name__ == "__main__":
 		little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max = action_to_freq(action)
 		set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 		little_past, mid_past, big_past, gpu_past = little_min, mid_min, big_min, gpu_min
+		actions = little_min, mid_min, big_min, gpu_min
 
 		# a = get_core_util()
 		# aa = get_energy()
@@ -477,7 +473,7 @@ if __name__ == "__main__":
 		record_count+=1
 		global_count += 1
 
-		little1, mid1, big1, gpu1 = state[[-4, -3, -2, 9]]
+		little1, mid1, big1, gpu1 = state[[-5, -4, -3, 9]]
 
 		if little_past != -1:
 
@@ -595,7 +591,7 @@ if __name__ == "__main__":
 		agent2.policy_net.state_dict()
 		"""
 
-	
+
 	turn_on_usb_charging()
 	unset_rate_limit_us()
 	turn_off_screen()

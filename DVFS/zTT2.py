@@ -13,7 +13,7 @@ import torch.optim as optim
 import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
-from zTTenv import DVFStrain
+from zTTenv2 import DVFStrain
 import matplotlib.pyplot as plt
 from utils import *
 import sys
@@ -44,7 +44,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "zTT2"
+    env_id: str = "zTT"
     """the id of the environment"""
     total_timesteps: int = 1201
     """total timesteps of the experiments"""

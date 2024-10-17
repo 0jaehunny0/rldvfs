@@ -21,6 +21,14 @@ parser.add_argument("--qos", default="fps", choices=['fps', 'byte', 'packet'],
                     help="Quality of Service")
 parser.add_argument("--tempSet", type = float, default=-1.0,
 					help="initial temperature")
+parser.add_argument("--big", type = int, default=2704000,
+					help="big core freq")
+parser.add_argument("--mid", type = int, default=2253000,
+					help="mid core freq")
+parser.add_argument("--little", type = int, default=1803000,
+					help="little core freq")
+parser.add_argument("--gpu", type = int, default=762000,
+					help="gpu freq")
 args = parser.parse_args()
 
 print(args)
@@ -47,6 +55,7 @@ set_brightness(158)
 unset_frequency()
 unset_rate_limit_us()
 
+
 window = get_window()
 
 
@@ -57,8 +66,20 @@ window = get_window()
 wait_temp(args.tempSet - 1)
 wait_temp(args.tempSet + 0.5)
 
+little_min = 300000
+little_max = args.little
+mid_min = 400000
+mid_max = args.mid
+big_min = 500000
+big_max = args.big
+gpu_min = 151000
+gpu_max = args.gpu
+
+set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
+
+
 turn_on_screen()
-run_name = f"{int(time.time())}__default__{args.tempSet}__exp{args.experiment}__temp{args.temperature}"
+run_name = f"{int(time.time())}__limitDefault__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__big{args.big}__mid{args.mid}__little{args.little}__gpu{args.gpu}"
 # run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
 
 little = []
