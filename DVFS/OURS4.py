@@ -161,8 +161,8 @@ if __name__ == "__main__":
     # run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}__exp{args.experiment}__temp{args.temperature}"
     run_name = f"{int(time.time())}__{args.env_id}__{args.seed}__{args.tempSet}__exp{args.experiment}__temp{args.temperature}"
 
-    wait_temp(args.tempSet - 1)
-    wait_temp(args.tempSet + 0.5)
+    # wait_temp(args.tempSet - 1)
+    # wait_temp(args.tempSet + 0.5)
 
 
 

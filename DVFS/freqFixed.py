@@ -74,6 +74,8 @@ gpu_max = args.gpu
 set_frequency(little_min, little_max, mid_min, mid_max, big_min, big_max, gpu_min, gpu_max)
 
 
+sleep(30)
+
 turn_on_screen()
 run_name = f"{int(time.time())}__freqFixed__{args.tempSet}__exp{args.experiment}__temp{args.temperature}__big{args.big}__gpu{args.gpu}"
 # run_name = "default__" + str(int(time.time()))+"__exp"+str(experiment)+"__temp"+str(temperature)
